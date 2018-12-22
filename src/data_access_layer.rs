@@ -44,18 +44,18 @@ mod parser {
 pub mod logger {
     use log::{warn, error};
     use simplelog::*;
-    use std::fs::File;
+    use std::{fs::OpenOptions, io::Write};
+
 
     pub fn init() -> Result<(), Box<dyn std::error::Error>> {
-        let file =  File::create("victorem_framework_logs.log")?;
-        let write_logger = WriteLogger::new(LevelFilter::Info, Config::default(), file)?;
-        let terminal_logger = TermLogger::new(LevelFilter::Warn, Config::default())?;
-        CombinedLogger::init(
+        let mut file = OpenOptions::new().append(true).create(true).open("victorem_framework_logs.log")?;
+        let write_logger = WriteLogger::new(LevelFilter::Info, Config::default(), file);
+      CombinedLogger::init(
             vec![
                 write_logger,
-                terminal_logger,
             ]
-        )
+        )?;
+        Ok(())
     }
 
     pub fn error(error: &str) {

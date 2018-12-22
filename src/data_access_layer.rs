@@ -1,6 +1,8 @@
 use std::net::{UdpSocket, SocketAddr};
 
-
+struct Address{
+    address: SocketAddr
+}
 struct ClientSocket {
     socket: UdpSocket
 }
@@ -39,6 +41,16 @@ impl ServerSocket {
         let socket = UdpSocket::bind(&local_address.trim())?;
         socket.set_read_timeout(Some(std::time::Duration::from_millis(TIMEOUT_IN_MILLIS)))?;
         Ok(socket)
+    }
+
+    fn read(&self, buffer:&mut [u8]) -> Result<(usize,Address),Box<dyn std::error::Error>>{
+        let (c, a) =  self.socket.recv_from(buffer)?;
+        Ok((c, Address{address: a}))
+    }
+
+    fn write(&self, buf: &[u8], addr: Address) -> Result<usize,Box<dyn std::error::Error>>{
+        let r =  self.socket.send_to(buf,addr.address)?;
+        Ok(r)
     }
 }
 

@@ -21,6 +21,16 @@ impl ClientSocket {
         socket.set_read_timeout(Some(Duration::from_millis(TIMEOUT_IN_MILLIS)))?;
         Ok(ClientSocket { socket })
     }
+
+    fn read(&self, buffer:&mut [u8]) -> Result<usize,Box<dyn std::error::Error>>{
+      let r =  self.socket.recv(buffer)?;
+        Ok(r)
+    }
+
+    fn write(&self, buf: &[u8]) -> Result<usize,Box<dyn std::error::Error>>{
+      let r =  self.socket.send(buf)?;
+        Ok(r)
+    }
 }
 
 impl ServerSocket {

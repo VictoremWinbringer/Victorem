@@ -1,13 +1,11 @@
-enum Command {
-    Exit
-}
-
-struct CommandsPacket{
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+pub struct CommandsPacket{
     id:u64,
-    commands: Vec<Command>,
+    commands: Vec<u8>,
 }
 
-struct StatePacket{
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+pub struct StatePacket{
     id:u64,
     lost_ids: Vec<u64>,
     state: Vec<u8>,

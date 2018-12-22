@@ -5,3 +5,8 @@ authors = ["VictoremWinbringer <victor@mail.ru>"]
 edition = "2018"
 
 [dependencies]
+bincode = "*"
+serde_derive = "*"
+serde = "*"
+log = "*"
+simplelog = "*"

@@ -59,22 +59,22 @@ mod parser {
     use log::error;
     use bincode::{serialize, deserialize};
 
-    fn serialize_command(commands: &crate::entities::CommandsPacket) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    pub  fn serialize_command(commands: &crate::entities::CommandsPacket) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         let r = serialize(commands)?;
         Ok(r)
     }
 
-    fn deserialize_command(data: Vec<u8>) -> Result<crate::entities::CommandsPacket, Box<dyn std::error::Error>> {
+    pub fn deserialize_command(data: Vec<u8>) -> Result<crate::entities::CommandsPacket, Box<dyn std::error::Error>> {
         let r = deserialize(&data)?;
         Ok(r)
     }
 
-    fn serialize_state(state: &crate::entities::StatePacket) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    pub  fn serialize_state(state: &crate::entities::StatePacket) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         let r = serialize(state)?;
         Ok(r)
     }
 
-    fn deserialize_state(data: Vec<u8>) -> Result<crate::entities::StatePacket, Box<dyn std::error::Error>> {
+    pub  fn deserialize_state(data: Vec<u8>) -> Result<crate::entities::StatePacket, Box<dyn std::error::Error>> {
         let r = deserialize(&data)?;
         Ok(r)
     }
@@ -137,6 +137,28 @@ impl BufferedClientSocket {
     }
 
     fn write(&self, buffer: &[u8]) -> Result<usize, Box<dyn std::error::Error>> {
-      self.socket.write(buffer)
+        self.socket.write(buffer)
+    }
+}
+
+struct TypedServerSocket {
+    socket: BufferedServerSocket
+}
+
+impl TypedServerSocket {
+    fn new(port: &str) -> Result<TypedServerSocket, Box<dyn std::error::Error>> {
+        let socket = BufferedServerSocket::new(port)?;
+        Ok(TypedServerSocket { socket })
+    }
+
+    fn read(&mut self) -> Result<(crate::entities::CommandsPacket, Address), Box<dyn std::error::Error>> {
+        let (c, a) = self.socket.read();
+        let commands = self::parser::deserialize_command(self.buffer[..c].into())?;
+        Ok((commands, a))
+    }
+
+    fn write(&self, addr: &Address, commands: &crate::entities::CommandsPacket) -> Result<usize, Box<dyn std::error::Error>> {
+        let bytes = self::parser::serialize_command(commands)?;
+        self.socket.write(addr, &bytes)
     }
 }

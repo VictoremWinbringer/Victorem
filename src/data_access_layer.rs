@@ -152,8 +152,8 @@ impl TypedServerSocket {
     }
 
     fn read(&mut self) -> Result<(crate::entities::CommandsPacket, Address), Box<dyn std::error::Error>> {
-        let (c, a) = self.socket.read();
-        let commands = self::parser::deserialize_command(self.buffer[..c].into())?;
+        let (b, a) = self.socket.read()?;
+        let commands = self::parser::deserialize_command(b)?;
         Ok((commands, a))
     }
 
@@ -181,6 +181,6 @@ impl TypedClientSocket {
 
     fn write(&self, commands: &crate::entities::CommandsPacket) -> Result<usize, Box<dyn std::error::Error>> {
         let bytes = self::parser::serialize_command(commands)?;
-        self.socket.write(buffer)
+        self.socket.write(&bytes)
     }
 }

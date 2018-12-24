@@ -157,8 +157,30 @@ impl TypedServerSocket {
         Ok((commands, a))
     }
 
-    fn write(&self, addr: &Address, commands: &crate::entities::CommandsPacket) -> Result<usize, Box<dyn std::error::Error>> {
-        let bytes = self::parser::serialize_command(commands)?;
+    fn write(&self, addr: &Address, state: &crate::entities::StatePacket) -> Result<usize, Box<dyn std::error::Error>> {
+        let bytes = self::parser::serialize_state(state)?;
         self.socket.write(addr, &bytes)
+    }
+}
+
+struct TypedClientSocket {
+socket:BufferedClientSocket
+}
+
+impl TypedClientSocket {
+    fn new(port: &str, server_address: &str) -> Result<TypedClientSocket, Box<dyn std::error::Error>> {
+        let socket = BufferedClientSocket::new(port, server_address)?;
+        Ok(TypedClientSocket { socket})
+    }
+
+    fn read(&mut self) -> Result<crate::entities::StatePacket, Box<dyn std::error::Error>> {
+        let r = self.socket.read()?;
+        let state = self::parser::deserialize_state(r)?;
+        Ok(state)
+    }
+
+    fn write(&self, commands: &crate::entities::CommandsPacket) -> Result<usize, Box<dyn std::error::Error>> {
+        let bytes = self::parser::serialize_command(commands)?;
+        self.socket.write(buffer)
     }
 }

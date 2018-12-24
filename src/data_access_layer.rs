@@ -1,14 +1,15 @@
 use std::net::{UdpSocket, SocketAddr};
 
-struct Address{
+struct Address {
     address: SocketAddr
 }
+
 struct ClientSocket {
-    socket: UdpSocket
+    socket: UdpSocket,
 }
 
 struct ServerSocket {
-    socket: UdpSocket
+    socket: UdpSocket,
 }
 
 const TIMEOUT_IN_MILLIS: u64 = 1000;
@@ -24,47 +25,62 @@ impl ClientSocket {
         Ok(ClientSocket { socket })
     }
 
-    fn read(&self, buffer:&mut [u8]) -> Result<usize,Box<dyn std::error::Error>>{
-      let r =  self.socket.recv(buffer)?;
+    fn read(&self, buffer: &mut [u8]) -> Result<usize, Box<dyn std::error::Error>> {
+        let r = self.socket.recv(buffer)?;
         Ok(r)
     }
 
-    fn write(&self, buf: &[u8]) -> Result<usize,Box<dyn std::error::Error>>{
-      let r =  self.socket.send(buf)?;
+    fn write(&self, buf: &[u8]) -> Result<usize, Box<dyn std::error::Error>> {
+        let r = self.socket.send(buf)?;
         Ok(r)
     }
 }
 
 impl ServerSocket {
-    fn new(port: &str) -> Result<UdpSocket, Box<dyn std::error::Error>> {
+    fn new(port: &str) -> Result<ServerSocket, Box<dyn std::error::Error>> {
         let local_address = format!("127.0.0.1:{}", port.trim());
         let socket = UdpSocket::bind(&local_address.trim())?;
         socket.set_read_timeout(Some(std::time::Duration::from_millis(TIMEOUT_IN_MILLIS)))?;
-        Ok(socket)
+        Ok(ServerSocket { socket })
     }
 
-    fn read(&self, buffer:&mut [u8]) -> Result<(usize,Address),Box<dyn std::error::Error>>{
-        let (c, a) =  self.socket.recv_from(buffer)?;
-        Ok((c, Address{address: a}))
+    fn read(&self, buffer: &mut [u8]) -> Result<(usize, Address), Box<dyn std::error::Error>> {
+        let (c, a) = self.socket.recv_from(buffer)?;
+        Ok((c, Address { address: a }))
     }
 
-    fn write(&self, buf: &[u8], addr: Address) -> Result<usize,Box<dyn std::error::Error>>{
-        let r =  self.socket.send_to(buf,addr.address)?;
+    fn write(&self, buf: &[u8], addr: &Address) -> Result<usize, Box<dyn std::error::Error>> {
+        let r = self.socket.send_to(buf, addr.address)?;
         Ok(r)
     }
 }
 
 mod parser {
+    use log::error;
     use bincode::{serialize, deserialize};
 
-    fn serialize_commands(commands: &crate::entities::CommandsPacket) -> Vec<u8> {
-        serialize(commands).map_err(|e| crate::data_access_layer::logger::error(&format!("serialize_commands error {}", e)))
-            .unwrap_or(Vec::new())
+    fn serialize_command(commands: &crate::entities::CommandsPacket) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+        let r = serialize(commands)?;
+        Ok(r)
+    }
+
+    fn deserialize_command(data: Vec<u8>) -> Result<crate::entities::CommandsPacket, Box<dyn std::error::Error>> {
+        let r = deserialize(&data)?;
+        Ok(r)
+    }
+
+    fn serialize_state(state: &crate::entities::StatePacket) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+        let r = serialize(state)?;
+        Ok(r)
+    }
+
+    fn deserialize_state(data: Vec<u8>) -> Result<crate::entities::StatePacket, Box<dyn std::error::Error>> {
+        let r = deserialize(&data)?;
+        Ok(r)
     }
 }
 
 pub mod logger {
-    use log::{warn, error};
     use simplelog::*;
     use std::{fs::OpenOptions, io::Write};
 
@@ -72,19 +88,55 @@ pub mod logger {
     pub fn init() -> Result<(), Box<dyn std::error::Error>> {
         let mut file = OpenOptions::new().append(true).create(true).open("victorem_framework_logs.log")?;
         let write_logger = WriteLogger::new(LevelFilter::Info, Config::default(), file);
-      CombinedLogger::init(
+        CombinedLogger::init(
             vec![
                 write_logger,
             ]
         )?;
         Ok(())
     }
+}
 
-    pub fn error(error: &str) {
-        error!("{}", error)
+struct BufferedServerSocket {
+    socket: ServerSocket,
+    buffer: [u8; 4096],
+}
+
+impl BufferedServerSocket {
+    fn new(port: &str) -> Result<BufferedServerSocket, Box<dyn std::error::Error>> {
+        let socket = ServerSocket::new(port)?;
+        let buffer = [0u8; 4096];
+        Ok(BufferedServerSocket { socket, buffer })
     }
 
-    pub fn warn(warn: &str) {
-        warn!("{}", warn)
+    fn read(&mut self) -> Result<(Vec<u8>, Address), Box<dyn std::error::Error>> {
+        let (c, a) = self.socket.read(&mut self.buffer)?;
+        Ok((self.buffer[..c].into(), a))
+    }
+
+    fn write(&self, addr: &Address, buffer: &[u8]) -> Result<usize, Box<dyn std::error::Error>> {
+        self.socket.write(buffer, addr)
+    }
+}
+
+struct BufferedClientSocket {
+    socket: ClientSocket,
+    buffer: [u8; 4096],
+}
+
+impl BufferedClientSocket {
+    fn new(port: &str, server_address: &str) -> Result<BufferedClientSocket, Box<dyn std::error::Error>> {
+        let socket = ClientSocket::new(port, server_address)?;
+        let buffer = [0u8; 4096];
+        Ok(BufferedClientSocket { socket, buffer })
+    }
+
+    fn read(&mut self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+        let r = self.socket.read(&mut self.buffer)?;
+        Ok(self.buffer[..r].into())
+    }
+
+    fn write(&self, buffer: &[u8]) -> Result<usize, Box<dyn std::error::Error>> {
+      self.socket.write(buffer)
     }
 }

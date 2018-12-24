@@ -1,7 +1,9 @@
+use serde_derive::{Serialize, Deserialize};
+
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub struct CommandsPacket{
     id:u64,
-    commands: Vec<u8>,
+    commands: Vec<Vec<u8>>,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]

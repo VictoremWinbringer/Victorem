@@ -1,16 +1,22 @@
-#[macro_use]
-extern crate serde_derive;
-
-use bincode::{serialize, deserialize};
-use serde;
-
 mod entities;
 mod data_access_layer;
 
-mod for_tests {
-    #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    pub struct TestData {
-        pub counter: i32
+trait Game {
+    fn update(&mut self, delta_time:std::time::Duration, commands:Vec<Vec<u8>>, from_address: &str) -> Vec<u8>;
+}
+
+struct GameProxy {
+    game: std::sync::Arc<std::sync::Mutex<Game>>
+}
+
+impl GameProxy {
+    fn new(game: std::sync::Arc<std::sync::Mutex<Game>>) -> GameProxy {
+        GameProxy{game}
+    }
+
+    fn update(&mut self, delta_time:std::time::Duration, commands:Vec<Vec<u8>>, from_address: &str) -> Vec<u8>{
+        let mut game = self.game.lock().unwrap();
+        game.update(delta_time,commands,from_address)
     }
 }
 
@@ -20,26 +26,6 @@ mod tests {
 
     #[test]
     fn it_works() {
-        let mut d = 1i32;
-        d_mut(&mut d);
-        d_not_mut(&d);
-        d_mut(&mut d);
-        d_not_mut(&d);
-        d_mut(&mut d);
-        d_not_mut(&d);
-        d_mut(&mut d);
-        d_not_mut(&d);
-        let test_data = crate::for_tests::TestData { counter: 2 };
-        let data = bincode::serialize(&test_data).unwrap();
-        let res: crate::for_tests::TestData = bincode::deserialize(&data).unwrap();
-        if let Err(e) = crate::data_access_layer::logger::init() {
-            println!("{:?}", e);
-        }
-        crate::data_access_layer::logger::error("lasjdflajslfdasdf");
-        assert_eq!(res.counter, test_data.counter);
+        assert_eq!(1,1);
     }
-
-    fn d_mut(d: &mut i32) {}
-
-    fn d_not_mut(d: &i32) {}
 }

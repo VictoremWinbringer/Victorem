@@ -11,6 +11,8 @@ struct GameProxy {
 
 impl GameProxy {
     fn new(game: std::sync::Arc<std::sync::Mutex<Game>>) -> GameProxy {
+        let mut client = crate::data_access_layer::TypedClientSocket::new("sdsf","sdfsf").unwrap();
+        let mut server = crate::data_access_layer::TypedServerSocket::new("asdfaf").unwrap();
         GameProxy{game}
     }
 
@@ -26,6 +28,7 @@ mod tests {
 
     #[test]
     fn it_works() {
+
         assert_eq!(1,1);
     }
 }

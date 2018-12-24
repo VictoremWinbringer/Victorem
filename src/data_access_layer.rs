@@ -141,45 +141,45 @@ impl BufferedClientSocket {
     }
 }
 
-struct TypedServerSocket {
+pub struct TypedServerSocket {
     socket: BufferedServerSocket
 }
 
 impl TypedServerSocket {
-    fn new(port: &str) -> Result<TypedServerSocket, Box<dyn std::error::Error>> {
+  pub  fn new(port: &str) -> Result<TypedServerSocket, Box<dyn std::error::Error>> {
         let socket = BufferedServerSocket::new(port)?;
         Ok(TypedServerSocket { socket })
     }
 
-    fn read(&mut self) -> Result<(crate::entities::CommandsPacket, Address), Box<dyn std::error::Error>> {
+  pub  fn read(&mut self) -> Result<(crate::entities::CommandsPacket, Address), Box<dyn std::error::Error>> {
         let (b, a) = self.socket.read()?;
         let commands = self::parser::deserialize_command(b)?;
         Ok((commands, a))
     }
 
-    fn write(&self, addr: &Address, state: &crate::entities::StatePacket) -> Result<usize, Box<dyn std::error::Error>> {
+  pub  fn write(&self, addr: &Address, state: &crate::entities::StatePacket) -> Result<usize, Box<dyn std::error::Error>> {
         let bytes = self::parser::serialize_state(state)?;
         self.socket.write(addr, &bytes)
     }
 }
 
-struct TypedClientSocket {
+pub struct TypedClientSocket {
 socket:BufferedClientSocket
 }
 
 impl TypedClientSocket {
-    fn new(port: &str, server_address: &str) -> Result<TypedClientSocket, Box<dyn std::error::Error>> {
+   pub fn new(port: &str, server_address: &str) -> Result<TypedClientSocket, Box<dyn std::error::Error>> {
         let socket = BufferedClientSocket::new(port, server_address)?;
         Ok(TypedClientSocket { socket})
     }
 
-    fn read(&mut self) -> Result<crate::entities::StatePacket, Box<dyn std::error::Error>> {
+   pub fn read(&mut self) -> Result<crate::entities::StatePacket, Box<dyn std::error::Error>> {
         let r = self.socket.read()?;
         let state = self::parser::deserialize_state(r)?;
         Ok(state)
     }
 
-    fn write(&self, commands: &crate::entities::CommandsPacket) -> Result<usize, Box<dyn std::error::Error>> {
+   pub fn write(&self, commands: &crate::entities::CommandsPacket) -> Result<usize, Box<dyn std::error::Error>> {
         let bytes = self::parser::serialize_command(commands)?;
         self.socket.write(&bytes)
     }

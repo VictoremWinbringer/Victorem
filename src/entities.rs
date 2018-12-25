@@ -1,9 +1,9 @@
 use serde_derive::{Serialize, Deserialize};
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
-pub struct CommandsPacket{
+pub struct CommandPacket {
     id:u64,
-    commands: Vec<Vec<u8>>,
+    command: Vec<u8>,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]

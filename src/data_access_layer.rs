@@ -60,12 +60,12 @@ mod parser {
     use log::error;
     use bincode::{serialize, deserialize};
 
-    pub  fn serialize_command(commands: &crate::entities::CommandsPacket) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    pub  fn serialize_command(commands: &crate::entities::CommandPacket) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         let r = serialize(commands)?;
         Ok(r)
     }
 
-    pub fn deserialize_command(data: Vec<u8>) -> Result<crate::entities::CommandsPacket, Box<dyn std::error::Error>> {
+    pub fn deserialize_command(data: Vec<u8>) -> Result<crate::entities::CommandPacket, Box<dyn std::error::Error>> {
         let r = deserialize(&data)?;
         Ok(r)
     }
@@ -152,7 +152,7 @@ impl TypedServerSocket {
         Ok(TypedServerSocket { socket })
     }
 
-  pub  fn read(&mut self) -> Result<(crate::entities::CommandsPacket, Address), Box<dyn std::error::Error>> {
+  pub  fn read(&mut self) -> Result<(crate::entities::CommandPacket, Address), Box<dyn std::error::Error>> {
         let (b, a) = self.socket.read()?;
         let commands = self::parser::deserialize_command(b)?;
         Ok((commands, a))
@@ -180,7 +180,7 @@ impl TypedClientSocket {
         Ok(state)
     }
 
-   pub fn write(&self, commands: &crate::entities::CommandsPacket) -> Result<usize, Box<dyn std::error::Error>> {
+   pub fn write(&self, commands: &crate::entities::CommandPacket) -> Result<usize, Box<dyn std::error::Error>> {
         let bytes = self::parser::serialize_command(commands)?;
         self.socket.write(&bytes)
     }

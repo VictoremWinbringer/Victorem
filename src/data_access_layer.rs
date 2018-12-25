@@ -12,7 +12,8 @@ struct ServerSocket {
     socket: UdpSocket,
 }
 
-const TIMEOUT_IN_MILLIS: u64 = 1000;
+const TIMEOUT_IN_MILLIS: u64 = 1_000;
+const MAX_DATAGRAM_SIZE: usize = 65_000;
 
 impl ClientSocket {
     fn new(port: &str, server_address: &str) -> Result<ClientSocket, Box<dyn std::error::Error>> {
@@ -99,13 +100,13 @@ pub mod logger {
 
 struct BufferedServerSocket {
     socket: ServerSocket,
-    buffer: [u8; 4096],
+    buffer: [u8; MAX_DATAGRAM_SIZE],
 }
 
 impl BufferedServerSocket {
     fn new(port: &str) -> Result<BufferedServerSocket, Box<dyn std::error::Error>> {
         let socket = ServerSocket::new(port)?;
-        let buffer = [0u8; 4096];
+        let buffer = [0u8; MAX_DATAGRAM_SIZE];
         Ok(BufferedServerSocket { socket, buffer })
     }
 
@@ -121,13 +122,13 @@ impl BufferedServerSocket {
 
 struct BufferedClientSocket {
     socket: ClientSocket,
-    buffer: [u8; 4096],
+    buffer: [u8; MAX_DATAGRAM_SIZE],
 }
 
 impl BufferedClientSocket {
     fn new(port: &str, server_address: &str) -> Result<BufferedClientSocket, Box<dyn std::error::Error>> {
         let socket = ClientSocket::new(port, server_address)?;
-        let buffer = [0u8; 4096];
+        let buffer = [0u8; MAX_DATAGRAM_SIZE];
         Ok(BufferedClientSocket { socket, buffer })
     }
 

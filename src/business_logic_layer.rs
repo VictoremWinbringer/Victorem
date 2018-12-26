@@ -4,48 +4,69 @@ use std::error::Error;
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 use std::sync::Mutex;
+use std::fmt::Display;
+use std::fmt::Formatter;
+use std::any::Any;
+
+#[derive(Debug)]
+struct NotOrderedPacketError(String);
+
+impl Error for NotOrderedPacketError {
+}
+
+impl Display for NotOrderedPacketError {
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+      write!(f,"{}", self.0)
+    }
+}
 
 struct Client {
-    socket: TypedClientSocket
+    id: u64,
+    socket: TypedClientSocket,
+    last_recv_id:u64,
+    send_packets: Vec<CommandPacket>
 }
 
 impl Client {
     fn new(port: &str, server_address: &str) -> Result<Client, Box<dyn Error>> {
         let socket = TypedClientSocket::new(port, server_address)?;
-        Ok(Client { socket })
+        Ok(Client { id: 1, socket, last_recv_id:0, send_packets: Vec::new() })
     }
 
-    fn send(&mut self, id: u64, command: Vec<u8>) -> Result<usize, Box<dyn Error>> {
-        self.socket.write(&CommandPacket::new(id, command))
+    fn write(&mut self, command: CommandPacket) -> Result<usize, Box<dyn Error>> {
+        self.socket.write(&command);
+        self.socket.write(&command)
     }
 
-    fn recv(&mut self) -> Result<StatePacket, Box<dyn Error>> {
+    fn read(&mut self) -> Result<StatePacket, Box<dyn Error>> {
         self.socket.read()
     }
-}
 
-struct ClientWithId {
-    id:u64,
-    client: Client,
-}
-
-impl ClientWithId {
-    fn new(port: &str, server_address: &str) -> Result<ClientWithId, Box<dyn Error>> {
-        let client = Client::new(port, server_address)?;;
-        Ok(ClientWithId { id:1, client })
+    fn recv_ordered(&mut self) -> Result<StatePacket, Box<dyn Error>> {
+        let packet = self.read()?;
+        if packet.id <= self.id {
+            Err(Box::new(NotOrderedPacketError("Not ordered packet".into())))
+        } else {
+            self.id = packet.id;
+            Ok(packet)
+        }
     }
 
-    fn send(&mut self, command: Vec<u8>) -> Result<usize, Box<dyn Error>> {
+    fn send_and_remember(&mut self, command: CommandPacket) ->  Result<usize, Box<dyn Error>>{
+       self.send_packets.push(command.clone());
+        self.write(command)
+    }
+
+    fn send_with_id(&mut self, id: u64, command: Vec<u8>) -> Result<usize, Box<dyn Error>> {
+        self.send_and_remember(CommandPacket::new(id, command))
+    }
+
+  pub fn send(&mut self, command: Vec<u8>) -> Result<usize, Box<dyn Error>> {
         let id = self.id.clone();
-        self.id +=1;
-       self.client.send(id, command)
-    }
-
-    fn recv(&mut self) -> Result<StatePacket, Box<dyn Error>> {
-        self.client.recv()
+        self.id += 1;
+        self.send_with_id(id, command)
     }
 }
-
 
 struct Server {
     socket: TypedServerSocket

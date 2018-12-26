@@ -1,6 +1,6 @@
 use serde_derive::{Serialize, Deserialize};
 
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct CommandPacket {
     pub  id: u64,
     pub  command: Vec<u8>,
@@ -12,7 +12,7 @@ impl CommandPacket {
     }
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[derive(Serialize, Deserialize, PartialEq, Debug,Clone)]
 pub struct StatePacket {
     pub  id: u64,
     pub lost_ids: Vec<u64>,

@@ -1,7 +1,7 @@
 use std::error::Error;
 use std::thread;
 use threadpool::ThreadPool;
-
+use victorem;
 #[test]
 fn it_works() {
     let pool = ThreadPool::new(100);
@@ -12,7 +12,7 @@ fn it_works() {
         })
     }
     thread::sleep_ms(10100);
-
+    let client = victorem::Client::new("sdfsf","asdfasf");
     assert_eq!(1, 1);
 }
 

@@ -171,9 +171,9 @@ pub mod logger {
     use std::{fs::OpenOptions, io::Write};
     use std::error::Error;
 
-    pub fn init() -> Result<(), Box<dyn Error>> {
+    pub fn init(log_level: LevelFilter) -> Result<(), Box<dyn Error>> {
         let mut file = OpenOptions::new().append(true).create(true).open("victorem_framework_logs.log")?;
-        let write_logger = WriteLogger::new(LevelFilter::Info, Config::default(), file);
+        let write_logger = WriteLogger::new(log_level, Config::default(), file);
         CombinedLogger::init(
             vec![
                 write_logger,

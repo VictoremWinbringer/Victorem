@@ -10,6 +10,7 @@ use std::thread;
 use log::error;
 use std::sync::mpsc;
 use std::time;
+use simplelog::LevelFilter;
 
 trait Game {
     fn update(&mut self, delta_time: std::time::Duration, commands: Vec<Vec<u8>>, from_address: &str) -> Vec<u8>;
@@ -31,15 +32,17 @@ impl GameProxy {
         game.update(delta_time, commands, from_address)
     }
 }
-
-struct Client {
+/// Client used to communicate with server. Must be singleton in your app
+pub struct Client {
     commands: mpsc::Sender<Vec<u8>>,
     states: mpsc::Receiver<Vec<u8>>,
 }
 
 impl Client {
+    ///Create new client and listen on port to recv packets from server_address and send ints to them
     pub fn new(port: &str, server_address: &str) -> Result<Client, Box<dyn Error>> {
         let mut client = crate::business_logic_layer::Client::new(port, server_address)?;
+        crate::data_access_layer::logger::init(LevelFilter::Info)?;
         let (tx, rx) = Client::run_process(client);
         Ok(Client { commands: tx, states: rx })
     }
@@ -69,10 +72,15 @@ impl Client {
         (tx1, rx2)
     }
 
+    ///Send data to server
+    /// Don't block current thread
     pub fn send(&self, command: Vec<u8>) {
         self.commands.send(command).map_err(|e| error!("{}", e));
     }
 
+    ///Reads data fro server
+    /// Don't block current thread
+    /// Return None if there is no data available
     pub fn recv(&self) -> Option<Vec<u8>> {
         self.states.try_recv().ok()
     }

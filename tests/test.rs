@@ -93,6 +93,7 @@ mod example {
 
     #[test]
     fn test_mul_proc() {
+        use std::char::*;
         let mut calc = self::super::Calculator::<isize> {
             op: self::super::Operation::Mul,
             lhs: 2,

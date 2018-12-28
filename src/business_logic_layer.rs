@@ -34,7 +34,6 @@ impl Client {
     }
 
     fn write(&mut self, command: CommandPacket) -> Result<usize, Box<dyn Error>> {
-        self.socket.write(&command);
         self.socket.write(&command)
     }
 

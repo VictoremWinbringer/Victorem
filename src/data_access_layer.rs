@@ -2,9 +2,18 @@ use std::net::{UdpSocket, SocketAddr};
 use std::error::Error;
 use crate::entities::{StatePacket, CommandPacket};
 use bincode::{serialize, deserialize};
+use std::fmt::Display;
+use std::fmt::Formatter;
 
-struct Address {
-    address: SocketAddr
+#[derive(Debug)]
+struct NotProtocolPacketError;
+
+impl Error for NotProtocolPacketError {}
+
+impl Display for NotProtocolPacketError {
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+        write!(f, "Error - packet don't have correct protocol id")
+    }
 }
 
 struct ClientSocket {
@@ -17,6 +26,8 @@ struct ServerSocket {
 
 const TIMEOUT_IN_MILLIS: u64 = 1_000;
 const MAX_DATAGRAM_SIZE: usize = 65_000;
+const PROTOCOL_ID: u8 = 8;
+const PROTOCOL_ID_SIZE_IN_BYTES:usize = 1;
 
 impl ClientSocket {
     fn new(port: &str, server_address: &str) -> Result<ClientSocket, Box<dyn Error>> {
@@ -25,13 +36,17 @@ impl ClientSocket {
         let remote_address = server_address.trim();
         let socket = UdpSocket::bind(&local_address)?;
         socket.connect(remote_address)?;
-        socket.set_read_timeout(Some(Duration::from_millis(TIMEOUT_IN_MILLIS)))?;
+        socket.set_nonblocking(true)?;
         Ok(ClientSocket { socket })
     }
 
     fn read(&self, buffer: &mut [u8]) -> Result<usize, Box<dyn Error>> {
-        let r = self.socket.recv(buffer)?;
-        Ok(r)
+        let c = self.socket.recv(buffer)?;
+        if c >= PROTOCOL_ID_SIZE_IN_BYTES && buffer[0] == PROTOCOL_ID {
+            Ok(c)
+        } else {
+            Err(Box::new(NotProtocolPacketError))
+        }
     }
 
     fn write(&self, buf: &[u8]) -> Result<usize, Box<dyn Error>> {
@@ -44,17 +59,21 @@ impl ServerSocket {
     fn new(port: &str) -> Result<ServerSocket, Box<dyn Error>> {
         let local_address = format!("127.0.0.1:{}", port.trim());
         let socket = UdpSocket::bind(&local_address.trim())?;
-        socket.set_read_timeout(Some(std::time::Duration::from_millis(TIMEOUT_IN_MILLIS)))?;
+        socket.set_nonblocking(true)?;
         Ok(ServerSocket { socket })
     }
 
-    fn read(&self, buffer: &mut [u8]) -> Result<(usize, Address), Box<dyn Error>> {
+    fn read(&self, buffer: &mut [u8]) -> Result<(usize, SocketAddr), Box<dyn Error>> {
         let (c, a) = self.socket.recv_from(buffer)?;
-        Ok((c, Address { address: a }))
+        if c >= PROTOCOL_ID_SIZE_IN_BYTES && buffer[0] == PROTOCOL_ID {
+            Ok((c, a))
+        } else {
+            Err(Box::new(NotProtocolPacketError))
+        }
     }
 
-    fn write(&self, buf: &[u8], addr: &Address) -> Result<usize, Box<dyn Error>> {
-        let r = self.socket.send_to(buf, addr.address)?;
+    fn write(&self, buf: &[u8], addr: &SocketAddr) -> Result<usize, Box<dyn Error>> {
+        let r = self.socket.send_to(buf, addr)?;
         Ok(r)
     }
 }
@@ -71,12 +90,12 @@ impl BufferedServerSocket {
         Ok(BufferedServerSocket { socket, buffer })
     }
 
-    fn read(&mut self) -> Result<(Vec<u8>, Address), Box<dyn Error>> {
+    fn read(&mut self) -> Result<(Vec<u8>, SocketAddr), Box<dyn Error>> {
         let (c, a) = self.socket.read(&mut self.buffer)?;
-        Ok((self.buffer[..c].into(), a))
+        Ok((self.buffer[PROTOCOL_ID_SIZE_IN_BYTES..c].into(), a))
     }
 
-    fn write(&self, addr: &Address, buffer: &[u8]) -> Result<usize, Box<dyn Error>> {
+    fn write(&self, addr: &SocketAddr, buffer: &[u8]) -> Result<usize, Box<dyn Error>> {
         self.socket.write(buffer, addr)
     }
 }
@@ -95,7 +114,7 @@ impl BufferedClientSocket {
 
     fn read(&mut self) -> Result<Vec<u8>, Box<dyn Error>> {
         let r = self.socket.read(&mut self.buffer)?;
-        Ok(self.buffer[..r].into())
+        Ok(self.buffer[PROTOCOL_ID_SIZE_IN_BYTES..r].into())
     }
 
     fn write(&self, buffer: &[u8]) -> Result<usize, Box<dyn Error>> {
@@ -113,13 +132,13 @@ impl TypedServerSocket {
         Ok(TypedServerSocket { socket })
     }
 
-    pub fn read(&mut self) -> Result<(CommandPacket, Address), Box<dyn Error>> {
+    pub fn read(&mut self) -> Result<(CommandPacket, SocketAddr), Box<dyn Error>> {
         let (b, a) = self.socket.read()?;
         let commands = deserialize(&b)?;
         Ok((commands, a))
     }
 
-    pub fn write(&self, addr: &Address, state: &StatePacket) -> Result<usize, Box<dyn Error>> {
+    pub fn write(&self, addr: &SocketAddr, state: &StatePacket) -> Result<usize, Box<dyn Error>> {
         let bytes = serialize(state)?;
         self.socket.write(addr, &bytes)
     }

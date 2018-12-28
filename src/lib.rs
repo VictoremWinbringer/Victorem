@@ -9,6 +9,8 @@ use std::sync::{Mutex, Arc};
 use std::thread;
 use log::error;
 use std::sync::mpsc;
+use std::time;
+
 trait Game {
     fn update(&mut self, delta_time: std::time::Duration, commands: Vec<Vec<u8>>, from_address: &str) -> Vec<u8>;
 }
@@ -36,28 +38,33 @@ struct Client {
 }
 
 impl Client {
-//    pub fn new(port: &str, server_address: &str) -> Result<Client, Box<dyn Error>> {
-//        let mut client = crate::business_logic_layer::Client::new(port, server_address)?;
-//        let queue = Arc::new(Mutex::new(VecDeque::new()));
-//        let moved = queue.clone();
-//        thread::spawn(move || {
-//            loop {
-//                thread::sleep_ms(30);
-//                let q = moved.lock()
-//                    .ok()
-//                    .as_mut()
-//                    .and_then(|x|x.pop_front())
-//                    .and_then(|x| client.send(x).map_err(|e|error!("On sending {}", e)).ok());
-//            }
-//        });
-//       Ok(Client { client, commandQueue: queue })
-//    }
+    pub fn new(port: &str, server_address: &str) -> Result<Client, Box<dyn Error>> {
+        let mut client = crate::business_logic_layer::Client::new(port, server_address)?;
+       let (tx,rx) =  Client::run_process(client);
+       Ok(Client { commands:tx,states:rx })
+    }
 
-    fn run_process(&self) -> (mpsc::Sender<Vec<u8>>, mpsc::Receiver<Vec<u8>>){
-     let (tx1, rx1) = mpsc::channel();
-    let (tx2, rx2) = mpsc::channel();
-    (tx1, rx2)
-}
+    fn run_process(mut client: crate::business_logic_layer::Client) -> (mpsc::Sender<Vec<u8>>, mpsc::Receiver<Vec<u8>>) {
+        let (tx1, rx1) = mpsc::channel();
+        let (tx2, rx2) = mpsc::channel();
+        thread::spawn(move || {
+            const SEND_TIMEOUT: time::Duration = time::Duration::from_millis(30);
+            let mut timer = time::Instant::now();
+            loop {
+                if timer.elapsed() > SEND_TIMEOUT {
+                    timer = time::Instant::now();
+                    rx1.try_recv()
+                        .and_then(|command| client.send(command))
+                        .map_err(|err| error!("{}", err))
+                }
+
+                client.recv()
+                    .and_then(|state| tx2.send(state))
+                    .map_err(|err| error!("{}", err));
+            }
+        });
+        (tx1, rx2)
+    }
 }
 
 //#[cfg(test)]

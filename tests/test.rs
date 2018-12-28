@@ -11,10 +11,11 @@ fn it_works() {
             println!("value {} from thread {:?}", i, thread::current().id());
         })
     }
+    thread::sleep_ms(10100);
 
-    thread::sleep_ms(1100);
     assert_eq!(1, 1);
 }
+
 
 use std::ops::{Add, Mul};
 use std::borrow::Borrow;

@@ -20,7 +20,7 @@ impl Display for NotOrderedPacketError {
     }
 }
 
-struct Client {
+pub struct Client {
     id: u64,
     socket: TypedClientSocket,
     last_recv_id: u64,
@@ -30,7 +30,7 @@ struct Client {
 impl Client {
     const MAX_SAVED_PACKETS: usize = 6000;
 
-    fn new(port: &str, server_address: &str) -> Result<Client, Box<dyn Error>> {
+  pub fn new(port: &str, server_address: &str) -> Result<Client, Box<dyn Error>> {
         let socket = TypedClientSocket::new(port, server_address)?;
         Ok(Client { id: 1, socket, last_recv_id: 0, send_packets: Vec::new() })
     }
@@ -63,6 +63,12 @@ impl Client {
         Ok(packet)
     }
 
+    pub fn recv(&mut self) -> Result<Vec<u8>, Box<dyn Error>> {
+      let packet =  self.recv_and_resend_lost_command()?;
+        packet.state
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////
     fn send_and_remember(&mut self, command: CommandPacket) -> Result<usize, Box<dyn Error>> {
         if self.send_packets.len() > Client::MAX_SAVED_PACKETS {
             self.send_packets = self.send_packets.iter()
@@ -78,10 +84,14 @@ impl Client {
         self.send_and_remember(CommandPacket::new(id, command))
     }
 
-    pub fn send(&mut self, command: Vec<u8>) -> Result<usize, Box<dyn Error>> {
+    fn send_and_increase_last_send_id(&mut self, command: Vec<u8>) -> Result<usize, Box<dyn Error>> {
         let id = self.id.clone();
         self.id += 1;
         self.send_with_id(id, command)
+    }
+
+    pub fn send(&mut self, command: Vec<u8>) -> Result<usize, Box<dyn Error>> {
+        self.send_and_increase_last_send_id(command)
     }
 }
 

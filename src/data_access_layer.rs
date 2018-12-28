@@ -16,7 +16,7 @@ impl Display for NotProtocolPacketError {
     }
 }
 
-struct ClientSocket {
+ struct ClientSocket {
     socket: UdpSocket,
 }
 

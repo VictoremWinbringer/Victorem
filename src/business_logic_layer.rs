@@ -7,7 +7,7 @@ use std::sync::Mutex;
 use std::fmt::Display;
 use std::fmt::Formatter;
 use std::any::Any;
-
+//TODO: disconnect after 10 seconds and que to send one packet in 30 ms and send lost ids
 
 #[derive(Debug)]
 struct NotOrderedPacketError(String);
@@ -28,6 +28,8 @@ struct Client {
 }
 
 impl Client {
+    const MAX_SAVED_PACKETS: usize = 6000;
+
     fn new(port: &str, server_address: &str) -> Result<Client, Box<dyn Error>> {
         let socket = TypedClientSocket::new(port, server_address)?;
         Ok(Client { id: 1, socket, last_recv_id: 0, send_packets: Vec::new() })
@@ -53,10 +55,21 @@ impl Client {
 
     fn recv_and_resend_lost_command(&mut self) -> Result<StatePacket, Box<dyn Error>> {
         let packet = self.recv_ordered()?;
+        for p in self.send_packets.iter() {
+            if packet.lost_ids.contains(&p.id) {
+                self.socket.write(p);
+            }
+        }
         Ok(packet)
     }
 
     fn send_and_remember(&mut self, command: CommandPacket) -> Result<usize, Box<dyn Error>> {
+        if self.send_packets.len() > Client::MAX_SAVED_PACKETS {
+            self.send_packets = self.send_packets.iter()
+                .skip(Client::MAX_SAVED_PACKETS / 2)
+                .map(|p| p.clone())
+                .collect();
+        }
         self.send_packets.push(command.clone());
         self.write(command)
     }

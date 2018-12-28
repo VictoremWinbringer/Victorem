@@ -40,8 +40,8 @@ struct Client {
 impl Client {
     pub fn new(port: &str, server_address: &str) -> Result<Client, Box<dyn Error>> {
         let mut client = crate::business_logic_layer::Client::new(port, server_address)?;
-       let (tx,rx) =  Client::run_process(client);
-       Ok(Client { commands:tx,states:rx })
+        let (tx, rx) = Client::run_process(client);
+        Ok(Client { commands: tx, states: rx })
     }
 
     fn run_process(mut client: crate::business_logic_layer::Client) -> (mpsc::Sender<Vec<u8>>, mpsc::Receiver<Vec<u8>>) {
@@ -53,17 +53,28 @@ impl Client {
             loop {
                 if timer.elapsed() > SEND_TIMEOUT {
                     timer = time::Instant::now();
-                    rx1.try_recv()
-                        .and_then(|command| client.send(command))
-                        .map_err(|err| error!("{}", err))
-                }
-
+                    match rx1.try_recv() {
+                        Ok(b) => client.send(b).map_err(|e| error!("{}", e)),
+                        Err(mpsc::TryRecvError::Disconnected) => break,
+                        Err(e) => Err(error!("{}", e)),
+                    };
+                };
                 client.recv()
-                    .and_then(|state| tx2.send(state))
-                    .map_err(|err| error!("{}", err));
+                    .map_err(|e|error!("{}",e))
+                    .and_then(|b| tx2.send(b)
+                        .map_err(|e|error!("{}",e)));
+
             }
         });
         (tx1, rx2)
+    }
+
+    pub fn send(&self, command: Vec<u8>) {
+        self.commands.send(command).map_err(|e| error!("{}", e));
+    }
+
+    pub fn recv(&self) -> Option<Vec<u8>> {
+        self.states.try_recv().ok()
     }
 }
 

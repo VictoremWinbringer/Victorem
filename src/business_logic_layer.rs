@@ -7,6 +7,7 @@ use std::sync::Mutex;
 use std::fmt::Display;
 use std::fmt::Formatter;
 use std::any::Any;
+use log::error;
 //TODO: disconnect after 10 seconds and que to send one packet in 30 ms and send lost ids
 
 #[derive(Debug)]
@@ -24,15 +25,15 @@ pub struct Client {
     id: u64,
     socket: TypedClientSocket,
     last_recv_id: u64,
-    send_packets: Vec<CommandPacket>,
+    send_packets: HashMap<u64, CommandPacket>,
 }
 
 impl Client {
     const MAX_SAVED_PACKETS: usize = 6000;
 
-  pub fn new(port: &str, server_address: &str) -> Result<Client, Box<dyn Error>> {
+    pub fn new(port: &str, server_address: &str) -> Result<Client, Box<dyn Error>> {
         let socket = TypedClientSocket::new(port, server_address)?;
-        Ok(Client { id: 1, socket, last_recv_id: 0, send_packets: Vec::new() })
+        Ok(Client { id: 1, socket, last_recv_id: 0, send_packets: HashMap::new() })
     }
 
     fn write(&mut self, command: CommandPacket) -> Result<usize, Box<dyn Error>> {
@@ -55,28 +56,34 @@ impl Client {
 
     fn recv_and_resend_lost_command(&mut self) -> Result<StatePacket, Box<dyn Error>> {
         let packet = self.recv_ordered()?;
-        for p in self.send_packets.iter() {
-            if packet.lost_ids.contains(&p.id) {
-                self.socket.write(p);
-            }
+        for id in packet.lost_ids.iter() {
+         self.send_packets.get(id)
+                .and_then(|p| self.socket.write(p)
+                    .map_err(|e| error!("on resend packet {}", e))
+                    .ok());
         }
+//        for p in self.send_packets.iter() {
+//            if packet.lost_ids.contains(&p.id) {
+//                self.socket.write(p);
+//            }
+//        }
         Ok(packet)
     }
 
     pub fn recv(&mut self) -> Result<Vec<u8>, Box<dyn Error>> {
-      let packet =  self.recv_and_resend_lost_command()?;
-        packet.state
+        let packet = self.recv_and_resend_lost_command()?;
+       Ok(packet.state)
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////
     fn send_and_remember(&mut self, command: CommandPacket) -> Result<usize, Box<dyn Error>> {
         if self.send_packets.len() > Client::MAX_SAVED_PACKETS {
-            self.send_packets = self.send_packets.iter()
+            self.send_packets = self.send_packets.clone()
+                .into_iter()
                 .skip(Client::MAX_SAVED_PACKETS / 2)
-                .map(|p| p.clone())
                 .collect();
         }
-        self.send_packets.push(command.clone());
+        self.send_packets.entry(command.id).or_insert(command.clone());
         self.write(command)
     }
 

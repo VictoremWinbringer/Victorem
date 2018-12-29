@@ -1,81 +1,69 @@
 use std::error::Error;
-use std::thread;
-use threadpool::ThreadPool;
 use victorem;
+
 
 #[test]
 fn it_works() {
-//    let pool = ThreadPool::new(100);
-//    for i in 0..1000 {
-//        pool.execute(move || {
-//            thread::sleep_ms(100);
-//            println!("value {} from thread {:?}", i, thread::current().id());
-//        })
-//    }
-//    thread::sleep_ms(10100);
-//    let client = victorem::Client::new("sdfsf", "asdfasf");
+
     let mut id = IdMiddleware::new(Some(Box::new(IdMiddleware2::new(None))));
-    let data = vec![1u8, 2u8, 3u8, 4u8];
-    let data = id.execute(&data);
-    assert!(false,"{:?}", data);
-    assert_eq!(1, 1);
+    let mut data = vec![1u8, 2u8, 3u8, 4u8];
+    let data = id.run(&mut data);
+    assert!(false, "{:?}", data);
 }
 
-fn process(data: &[u8]) -> Result<&[u8], Box<dyn Error>> {
-    Ok(&data[..1])
-}
-
-trait Middleware {
-    fn execute<'a: 'b, 'b>(&mut self, data: &'a [u8]) -> Result<&'b [u8], Box<Error>>;
-    fn next() -> &mut Option<Box<dyn Middleware>>;
+trait Middleware<T: ?Sized> {
+    fn execute<'a: 'b, 'b>(&mut self, data: &'a mut T) -> Result<&'b mut T, Box<Error>>;
+    fn next(&mut self) -> &mut Option<Box<dyn Middleware<T>>>;
+    fn run<'a: 'b, 'b>(&mut self, data: &'a mut T) -> Result<&'b mut T, Box<Error>> {
+        let data = self.execute(data)?;
+        match &mut self.next() {
+            Some(next) => next.execute(data),
+            None => Ok(data),
+        }
+    }
 }
 
 struct IdMiddleware {
-    next: Option<Box<dyn Middleware>>,
+    next: Option<Box<dyn Middleware<[u8]>>>,
 }
 
 impl IdMiddleware {
-    fn new(next: Option<Box<dyn Middleware>>) -> IdMiddleware {
+    fn new(next: Option<Box<dyn Middleware<[u8]>>>) -> IdMiddleware {
         IdMiddleware { next }
     }
 }
 
-impl Middleware for IdMiddleware {
-    fn execute<'a: 'b, 'b>(&mut self, data: &'a [u8]) -> Result<&'b [u8], Box<Error>> {
+impl Middleware<[u8]> for IdMiddleware {
+    fn execute<'a: 'b, 'b>(&mut self, data: &'a mut [u8]) -> Result<&'b mut [u8], Box<Error>> {
         let len = data.len();
-        let data = &data[1..len];
-        match &mut self.next {
-            Some(next) => next.execute(data),
-            None => Ok(data),
-        }
+        let data = &mut data[1..len];
+        Ok(data)
     }
 
-    fn next() -> &mut Option<Box<Middleware>> {
-        unimplemented!()
+    fn next(&mut self) -> &mut Option<Box<Middleware<[u8]>>> {
+        &mut self.next
     }
 }
 
 struct IdMiddleware2 {
-    next: Option<Box<dyn Middleware>>,
+    next: Option<Box<dyn Middleware<[u8]>>>,
 }
 
 impl IdMiddleware2 {
-    fn new(next: Option<Box<dyn Middleware>>) -> IdMiddleware2 {
+    fn new(next: Option<Box<dyn Middleware<[u8]>>>) -> IdMiddleware2 {
         IdMiddleware2 { next }
     }
 }
 
-impl Middleware for IdMiddleware2 {
-    fn execute<'a: 'b, 'b>(&mut self, data: &'a [u8]) -> Result<&'b [u8], Box<Error>> {
-        let data = &data[1..data.len()];
-        match &mut self.next {
-            Some(next) => next.execute(data),
-            None => Ok(data),
-        }
+impl Middleware<[u8]> for IdMiddleware2 {
+    fn execute<'a: 'b, 'b>(&mut self, data: &'a mut [u8]) -> Result< &'b mut [u8], Box < Error >> {
+        let len = data.len();
+    let data = &mut data[1..len];
+    Ok(data)
     }
 
-    fn next() -> &mut Option<Box<Middleware>> {
-        unimplemented!()
+    fn next(&mut self) -> &mut Option<Box<Middleware<[u8]>>> {
+        &mut self.next
     }
 }
 
@@ -156,7 +144,6 @@ mod example {
 
     #[test]
     fn test_mul_proc() {
-        use std::char::*;
         let mut calc = self::super::Calculator::<isize> {
             op: self::super::Operation::Mul,
             lhs: 2,

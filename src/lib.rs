@@ -39,7 +39,7 @@ pub struct Client {
 }
 
 impl Client {
-    ///Create new client and listen on port to recv packets from server_address and send ints to them
+    ///Create new client and listen on port to recv packets from server_address and send its to them
     pub fn new(port: &str, server_address: &str) -> Result<Client, Box<dyn Error>> {
         let mut client = crate::business_logic_layer::Client::new(port, server_address)?;
         crate::data_access_layer::logger::init(LevelFilter::Info)?;

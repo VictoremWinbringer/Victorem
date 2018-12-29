@@ -62,11 +62,6 @@ impl Client {
                     .map_err(|e| error!("on resend packet {}", e))
                     .ok());
         }
-//        for p in self.send_packets.iter() {
-//            if packet.lost_ids.contains(&p.id) {
-//                self.socket.write(p);
-//            }
-//        }
         Ok(packet)
     }
 

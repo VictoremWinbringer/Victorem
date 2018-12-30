@@ -4,17 +4,25 @@ use victorem;
 
 #[test]
 fn it_works() {
-
-    let mut id = IdMiddleware::new(Some(Box::new(IdMiddleware2::new(None))));
-    let mut data = vec![1u8, 2u8, 3u8, 4u8];
-    let data = id.run(&mut data);
-    assert!(false, "{:?}", data);
+    let mut id = AddOne { next: Some(Box::new(AddOne { next: None })) };
+    let data = id.run(3);
+    let f = curry(1,add);
+    let f = compose(f,curry(1,add));
+    let data = f(3);
+        assert!(false, "{:?}", data);
 }
 
-trait Middleware<T: ?Sized> {
-    fn execute<'a: 'b, 'b>(&mut self, data: &'a mut T) -> Result<&'b mut T, Box<Error>>;
+#[test]
+fn static_add(){
+  let mut f = add_static(3);
+    let data = format!("one {}, two {}, three {}",f(1),f(1),f(1));
+    assert!(false, "{}", data);
+}
+
+trait Middleware<T> {
+    fn execute(&mut self, mut data: T) -> Result<T, Box<Error>>;
     fn next(&mut self) -> &mut Option<Box<dyn Middleware<T>>>;
-    fn run<'a: 'b, 'b>(&mut self, data: &'a mut T) -> Result<&'b mut T, Box<Error>> {
+    fn run(&mut self, mut data: T) -> Result<T, Box<Error>> {
         let data = self.execute(data)?;
         match &mut self.next() {
             Some(next) => next.execute(data),
@@ -23,49 +31,37 @@ trait Middleware<T: ?Sized> {
     }
 }
 
-struct IdMiddleware {
-    next: Option<Box<dyn Middleware<[u8]>>>,
+fn compose<T:From<U>, U>(rhs: impl FnOnce(T) -> U, lhs: impl FnOnce(T) -> U) -> impl FnOnce(T) -> U {
+   move |x| lhs(rhs(x).into())
 }
 
-impl IdMiddleware {
-    fn new(next: Option<Box<dyn Middleware<[u8]>>>) -> IdMiddleware {
-        IdMiddleware { next }
-    }
+fn curry<T, U, Z>(x: T, f: impl FnOnce(T, U) -> Z) -> impl FnOnce(U) -> Z {
+   move |y| f(x, y)
 }
 
-impl Middleware<[u8]> for IdMiddleware {
-    fn execute<'a: 'b, 'b>(&mut self, data: &'a mut [u8]) -> Result<&'b mut [u8], Box<Error>> {
-        let len = data.len();
-        let data = &mut data[1..len];
-        Ok(data)
+fn add(x: i32, y: i32) -> i32 {
+    x + y
+}
+fn add_static(mut x:i32) -> impl FnMut(i32)->i32{
+     move |y|{
+          x +=10;
+          x+y
+      }
+}
+struct AddOne {
+    next: Option<Box<Middleware<i32>>>
+}
+
+impl Middleware<i32> for AddOne {
+    fn execute(&mut self, mut data: i32) -> Result<i32, Box<Error>> {
+        Ok(data + 1)
     }
 
-    fn next(&mut self) -> &mut Option<Box<Middleware<[u8]>>> {
+    fn next(&mut self) -> &mut Option<Box<Middleware<i32>>> {
         &mut self.next
     }
 }
 
-struct IdMiddleware2 {
-    next: Option<Box<dyn Middleware<[u8]>>>,
-}
-
-impl IdMiddleware2 {
-    fn new(next: Option<Box<dyn Middleware<[u8]>>>) -> IdMiddleware2 {
-        IdMiddleware2 { next }
-    }
-}
-
-impl Middleware<[u8]> for IdMiddleware2 {
-    fn execute<'a: 'b, 'b>(&mut self, data: &'a mut [u8]) -> Result< &'b mut [u8], Box < Error >> {
-        let len = data.len();
-    let data = &mut data[1..len];
-    Ok(data)
-    }
-
-    fn next(&mut self) -> &mut Option<Box<Middleware<[u8]>>> {
-        &mut self.next
-    }
-}
 
 use std::ops::{Add, Mul};
 use std::borrow::Borrow;

@@ -5,7 +5,7 @@ use bincode::{serialize, deserialize};
 use std::fmt::Display;
 use std::fmt::Formatter;
 
- struct ClientSocket {
+struct ClientSocket {
     socket: UdpSocket,
 }
 
@@ -47,7 +47,7 @@ impl ServerSocket {
 
     fn read(&self, buffer: &mut [u8]) -> Result<(usize, SocketAddr), Exception> {
         let (c, a) = self.socket.recv_from(buffer)?;
-            Ok((c, a))
+        Ok((c, a))
     }
 
     fn write(&self, buf: &[u8], addr: &SocketAddr) -> Result<usize, Exception> {
@@ -144,6 +144,31 @@ impl TypedClientSocket {
     }
 }
 
+pub struct Cache {
+    data: Vec<CommandPacket>
+}
+
+impl Cache {
+    const MAX_SAVED: usize = 10000;
+
+    pub fn add(&mut self, command: CommandPacket) {
+        if self.data.len() > Cache::MAX_SAVED {
+            self.data = self.data.clone()
+                .into_iter()
+                .skip(Cache::MAX_SAVED / 2)
+                .collect();
+        }
+        self.data.push(command);
+    }
+
+    pub fn get(&mut self, id: u32) -> Option<CommandPacket> {
+        self.data.iter()
+            .position(|c| c.id == id)
+            .map(|i| self.data.remove(i))
+    }
+}
+
+
 pub mod logger {
     use simplelog::*;
     use std::{fs::OpenOptions, io::Write};
@@ -160,3 +185,4 @@ pub mod logger {
         Ok(())
     }
 }
+

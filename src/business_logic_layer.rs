@@ -58,9 +58,9 @@ mod protocol_id {
 
     const PROTOCOL_ID: u8 = 8;
 
-    trait IWithProtocol {
+   pub trait IWithProtocol {
         fn get(&self) -> u8;
-        fn set(&mut self, version: u8);
+        fn set(&mut self, id: u8);
     }
 
     impl IWithProtocol for StatePacket {
@@ -68,8 +68,8 @@ mod protocol_id {
             self.protocol_id
         }
 
-        fn set(&mut self, version: u8) {
-            self.protocol_id = version
+        fn set(&mut self, id: u8) {
+            self.protocol_id = id
         }
     }
 
@@ -78,12 +78,12 @@ mod protocol_id {
             self.protocol_id
         }
 
-        fn set(&mut self, version: u8) {
-            self.protocol_id = version
+        fn set(&mut self, id: u8) {
+            self.protocol_id = id
         }
     }
 
-    fn check(data: &impl IWithProtocol) -> Result<(), Exception> {
+ pub   fn check(data: &impl IWithProtocol) -> Result<(), Exception> {
         if data.get() == PROTOCOL_ID {
             Ok(())
         } else {
@@ -91,13 +91,48 @@ mod protocol_id {
         }
     }
 
-    fn set(data: &mut impl IWithProtocol){
+   pub fn set(data: &mut impl IWithProtocol){
         data.set(PROTOCOL_ID)
     }
 }
 
 mod id {
-    
+    use crate::entities::{StatePacket, CommandPacket, Exception};
+
+    trait IWithId {
+        fn get(&self) -> u32;
+        fn set(&mut self, id:u32);
+    }
+
+    impl IWithId for StatePacket {
+        fn get(&self) -> u32 {
+            self.id
+        }
+
+        fn set(&mut self, id: u32) {
+            self.id = id
+        }
+    }
+
+    impl IWithId for CommandPacket {
+        fn get(&self) -> u32 {
+            self.id
+        }
+
+        fn set(&mut self, id: u32) {
+            self.id = id
+        }
+    }
+
+    struct IdGenerator{
+        id:u32
+    }
+
+    impl IdGenerator{
+        fn set(&mut self, data:&mut impl IWithId){
+            data.set(self.id)
+        }
+    }
 }
 
 pub struct Client {
@@ -124,7 +159,9 @@ impl Client {
     }
 
     fn recv_ordered(&mut self) -> Result<StatePacket, Exception> {
+
         let packet = self.read()?;
+        self::protocol_id::check(&packet)?;
         if packet.id <= self.id {
             Err(Exception::NotOrderedPacketError)
         } else {

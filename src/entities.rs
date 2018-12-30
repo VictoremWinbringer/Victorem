@@ -40,6 +40,7 @@ pub enum Exception {
     BincodeError(bincode::Error),
     SetLoggerError(log::SetLoggerError),
     NotOrderedPacketError,
+    NotValidIdError,
 }
 
 impl Error for Exception {

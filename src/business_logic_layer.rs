@@ -58,7 +58,7 @@ mod protocol_id {
 
     const PROTOCOL_ID: u8 = 8;
 
-   pub trait IWithProtocol {
+    pub trait IWithProtocol {
         fn get(&self) -> u8;
         fn set(&mut self, id: u8);
     }
@@ -83,7 +83,7 @@ mod protocol_id {
         }
     }
 
- pub   fn check(data: &impl IWithProtocol) -> Result<(), Exception> {
+    pub fn check(data: &impl IWithProtocol) -> Result<(), Exception> {
         if data.get() == PROTOCOL_ID {
             Ok(())
         } else {
@@ -91,17 +91,18 @@ mod protocol_id {
         }
     }
 
-   pub fn set(data: &mut impl IWithProtocol){
+    pub fn set(data: &mut impl IWithProtocol) {
         data.set(PROTOCOL_ID)
     }
 }
 
 mod id {
     use crate::entities::{StatePacket, CommandPacket, Exception};
+    use std::collections::{HashMap, VecDeque};
 
     trait IWithId {
         fn get(&self) -> u32;
-        fn set(&mut self, id:u32);
+        fn set(&mut self, id: u32);
     }
 
     impl IWithId for StatePacket {
@@ -124,13 +125,57 @@ mod id {
         }
     }
 
-    struct IdGenerator{
-        id:u32
+    struct Generator {
+        id: u32
     }
 
-    impl IdGenerator{
-        fn set(&mut self, data:&mut impl IWithId){
-            data.set(self.id)
+    impl Generator {
+        fn set(&mut self, data: &mut impl IWithId) {
+            data.set(self.id);
+            self.id += 1;
+        }
+    }
+
+    struct Filter {
+        id: u32
+    }
+
+    impl Filter {
+        fn filter(&mut self, data: &impl IWithId) -> Result<(), Exception> {
+            if data.get() <= self.id {
+                Err(Exception::NotValidIdError)
+            } else {
+                self.id = data.get();
+                Ok(())
+            }
+        }
+    }
+
+    struct Arranger<T: IWithId> {
+        id: u32,
+        packets: HashMap<u32, T>,
+        lost: Vec<u32>,
+        valid: VecDeque<T>,
+    }
+
+    impl<T: IWithId> Arranger<T> {
+        fn arrange(&mut self, data: T) -> Result<(), Exception> {
+            if self.try_set_id(data) {
+                Ok(())
+            } else {
+                Ok(())
+            }
+        }
+
+
+        fn validate(&mut self, data: T) -> Result<(), Exception> {
+            if self.id == data.get() {
+                return Err(Exception::NotValidIdError);
+            };
+            if let Some(v) = self.packets.get(&data.get()) {
+                return Err(Exception::NotValidIdError);
+            };
+            Ok(())
         }
     }
 }
@@ -159,7 +204,6 @@ impl Client {
     }
 
     fn recv_ordered(&mut self) -> Result<StatePacket, Exception> {
-
         let packet = self.read()?;
         self::protocol_id::check(&packet)?;
         if packet.id <= self.id {

@@ -20,7 +20,7 @@ fn static_add(){
 }
 
 trait Middleware<T> {
-    fn execute(&mut self, mut data: T) -> Result<T, Box<Error>>;
+    fn execute(&mut self, data: T) -> Result<T, Box<Error>>;
     fn next(&mut self) -> &mut Option<Box<dyn Middleware<T>>>;
     fn run(&mut self, mut data: T) -> Result<T, Box<Error>> {
         let data = self.execute(data)?;

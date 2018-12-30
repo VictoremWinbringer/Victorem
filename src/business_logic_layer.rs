@@ -10,82 +10,101 @@ use std::any::Any;
 use log::error;
 //TODO: disconnect after 10 seconds and que to send one packet in 30 ms and send lost ids
 
-trait Middleware<T: ?Sized> {
-    fn execute<'a: 'b, 'b>(&mut self, data: &'a mut T) -> Result<(), Exception>;
-    fn next(&mut self) -> &mut Option<Box<dyn Middleware<T>>>;
-    fn run<'a: 'b, 'b>(&mut self, data: &'a mut T) -> Result<(), Exception> {
-        self.execute(data)?;
-        match &mut self.next() {
-            Some(next) => next.execute(data),
-            None => Ok(()),
+mod versions {
+    use crate::entities::{StatePacket, CommandPacket, Exception};
+
+    const PROTOCOL_VERSION: u8 = 1;
+
+    trait IWithVersion {
+        fn get(&self) -> u8;
+        fn set(&mut self, version: u8);
+    }
+
+    impl IWithVersion for StatePacket {
+        fn get(&self) -> u8 {
+            self.protocol_version
+        }
+
+        fn set(&mut self, version: u8) {
+            self.protocol_version = version
         }
     }
-}
 
-const PROTOCOL_ID: u8 = 8;
-const PROTOCOL_VERSION: u8 = 1;
+    impl IWithVersion for CommandPacket {
+        fn get(&self) -> u8 {
+            self.protocol_version
+        }
 
-struct ProtocolVersionChecker<T> {
-    next: Option<Box<Middleware<T>>>,
-}
+        fn set(&mut self, version: u8) {
+            self.protocol_version = version
+        }
+    }
 
-impl Middleware<StatePacket> for ProtocolVersionChecker<StatePacket> {
-    fn execute<'a: 'b, 'b>(&mut self, data: &'a mut StatePacket) -> Result<(), Exception> {
-        if data.protocol_version == PROTOCOL_VERSION {
+    fn check(data: &impl IWithVersion) -> Result<(), Exception> {
+        if data.get() == PROTOCOL_VERSION {
             Ok(())
         } else {
             Err(Exception::BadProtocolVersion)
         }
     }
 
-    fn next(&mut self) -> &mut Option<Box<Middleware<StatePacket>>> {
-        &mut self.next
+    fn set(data: &mut impl IWithVersion) {
+        data.set(PROTOCOL_VERSION)
     }
 }
 
-impl Middleware<CommandPacket> for ProtocolVersionChecker<CommandPacket> {
-    fn execute<'a: 'b, 'b>(&mut self, data: &'a mut CommandPacket) -> Result<(), Exception> {
-        if data.protocol_version == PROTOCOL_VERSION {
+mod protocol_id {
+    use crate::entities::{StatePacket, CommandPacket, Exception};
+
+    const PROTOCOL_ID: u8 = 8;
+
+    trait IWithProtocol {
+        fn get(&self) -> u8;
+        fn set(&mut self, version: u8);
+    }
+
+    impl IWithProtocol for StatePacket {
+        fn get(&self) -> u8 {
+            self.protocol_id
+        }
+
+        fn set(&mut self, version: u8) {
+            self.protocol_id = version
+        }
+    }
+
+    impl IWithProtocol for CommandPacket {
+        fn get(&self) -> u8 {
+            self.protocol_id
+        }
+
+        fn set(&mut self, version: u8) {
+            self.protocol_id = version
+        }
+    }
+
+    fn check(data: &impl IWithProtocol) -> Result<(), Exception> {
+        if data.get() == PROTOCOL_ID {
             Ok(())
         } else {
             Err(Exception::BadProtocolVersion)
         }
     }
 
-    fn next(&mut self) -> &mut Option<Box<Middleware<CommandPacket>>> {
-        &mut self.next
+    fn set(data: &mut impl IWithProtocol){
+        data.set(PROTOCOL_ID)
     }
 }
 
-struct ProtocolVersionSetter<T> {
-    next: Option<Box<Middleware<T>>>,
-}
-
-impl Middleware<CommandPacket> for ProtocolVersionSetter<CommandPacket> {
-    fn execute<'a: 'b, 'b>(&mut self, data: &'a mut CommandPacket) -> Result<(), Exception> {
-        data.protocol_version = PROTOCOL_VERSION;
-        Ok(())
-    }
-
-    fn next(&mut self) -> &mut Option<Box<Middleware<CommandPacket>>> { &mut self.next }
-}
-
-impl Middleware<StatePacket> for ProtocolVersionSetter<StatePacket> {
-    fn execute<'a: 'b, 'b>(&mut self, data: &'a mut StatePacket) -> Result<(), Exception> {
-        data.protocol_version = PROTOCOL_VERSION;
-        Ok(())
-    }
-
-    fn next(&mut self) -> &mut Option<Box<Middleware<StatePacket>>> {
-        &mut self.next
-    }
+mod id {
+    
 }
 
 pub struct Client {
-    id: u64,
+    id: u32,
     socket: TypedClientSocket,
-    last_recv_id: u64,
-    send_packets: HashMap<u64, CommandPacket>,
+    last_recv_id: u32,
+    send_packets: HashMap<u32, CommandPacket>,
 }
 
 impl Client {
@@ -142,7 +161,7 @@ impl Client {
         self.write(command)
     }
 
-    fn send_with_id(&mut self, id: u64, command: Vec<u8>) -> Result<usize, Exception> {
+    fn send_with_id(&mut self, id: u32, command: Vec<u8>) -> Result<usize, Exception> {
         self.send_and_remember(CommandPacket {
             protocol_id: 0,
             protocol_version: 0,

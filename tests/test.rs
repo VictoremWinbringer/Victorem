@@ -16,7 +16,8 @@ fn it_works() {
 fn static_add(){
   let mut f = add_static(3);
     let data = format!("one {}, two {}, three {}",f(1),f(1),f(1));
-    assert!(false, "{}", data);
+    let r:Vec<i32> = (1..=3).collect();
+    assert!(false, "{:#?}", r);
 }
 
 trait Middleware<T> {

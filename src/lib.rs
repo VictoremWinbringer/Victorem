@@ -13,6 +13,9 @@ use std::thread;
 use std::time;
 use std::net::SocketAddr;
 use std::time::Duration;
+use crate::entities::{CommandPacket, StatePacket, Exception};
+use crate::data_access_layer::{TypedClientSocket, TypedServerSocket};
+use crate::business_logic_layer as bll;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ServerEvent {
@@ -30,6 +33,21 @@ pub trait Game {
         eprintln!("Handled {:#?}", event);
     }
 }
+
+pub struct Client {
+    socket: TypedClientSocket,
+    client: bll::Client,
+}
+
+impl Client {
+    pub fn send(&mut self, command: Vec<u8>) -> Result<usize, Exception> {
+        let command = self.client.send(command);
+        self.socket.write(&command)
+    }
+
+    pub fn recv() { unimplemented!() }
+}
+
 //trait Game {
 //    fn update(&mut self, delta_time: std::time::Duration, commands: Vec<Vec<u8>>, from_address: &str) -> Vec<u8>;
 //}

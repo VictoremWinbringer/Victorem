@@ -13,7 +13,7 @@ pub struct CommandPacket {
 }
 
 impl CommandPacket {
-    fn new(command: Vec<u8>) -> CommandPacket {
+    pub fn new(command: Vec<u8>) -> CommandPacket {
         CommandPacket { protocol_id: 0, protocol_version: 0, id: 0, command }
     }
 }
@@ -28,8 +28,8 @@ pub struct StatePacket {
 }
 
 impl StatePacket {
-    fn new(state:Vec<u8>)->StatePacket{
-        StatePacket{protocol_id:0,protocol_version:0,id:0,lost_ids:Vec::new(),state}
+    fn new(state: Vec<u8>) -> StatePacket {
+        StatePacket { protocol_id: 0, protocol_version: 0, id: 0, lost_ids: Vec::new(), state }
     }
 }
 
@@ -43,13 +43,11 @@ pub enum Exception {
     NotValidIdError,
 }
 
-impl Error for Exception {
-
-}
+impl Error for Exception {}
 
 impl Display for Exception {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-        write!(f,"{:#?}",self)
+        write!(f, "{:#?}", self)
     }
 }
 

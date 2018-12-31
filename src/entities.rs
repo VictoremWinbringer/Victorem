@@ -33,7 +33,7 @@ pub struct StatePacket {
 }
 
 impl StatePacket {
-   pub fn new(state: Vec<u8>) -> StatePacket {
+    pub fn new(state: Vec<u8>) -> StatePacket {
         StatePacket {
             protocol_id: 0,
             protocol_version: 0,
@@ -44,7 +44,7 @@ impl StatePacket {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Exception {
     IoError(std::io::Error),
     BadProtocolVersion,

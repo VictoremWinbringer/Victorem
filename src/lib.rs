@@ -23,16 +23,19 @@ use std::sync::atomic::{AtomicBool, Ordering};
 pub enum ServerEvent {
     Connected(SocketAddr),
     DisconnectedByTimeout(SocketAddr),
+    ExceptionOnRecv(Exception),
+    ExceptionOnSend((SocketAddr, Exception)),
 }
 
 pub trait Game {
-    fn update(&mut self, delta_time: Duration, command: Vec<u8>, from: SocketAddr) -> bool;
+    fn update(&mut self, delta_time: Duration, commands: Vec<Vec<u8>>, from: SocketAddr) -> bool;
     fn draw(&mut self, delta_time: Duration) -> Vec<u8>;
-    fn allow_connect(from: SocketAddr) -> bool {
+    fn allow_connect(&mut self, from: &SocketAddr) -> bool {
         true
     }
-    fn handle_server_event(event: ServerEvent) {
+    fn handle_server_event(&mut self, event: ServerEvent) -> bool {
         eprintln!("Handled {:#?}", event);
+        true
     }
 }
 
@@ -107,9 +110,27 @@ impl<T: Game> GameServer<T> {
     }
 
     pub fn run(&mut self) {
-        loop {
-            //  game.update(Duration::from_millis(1), Vec::new(), S)
+        let mut is_running = true;
+        let mut clients = Vec::<SocketAddr>::new();
+        while is_running {
+            is_running = match self.socket.recv() {
+                Ok((commands, from)) => {
+                    if self.game.allow_connect(&from) {
+                        if !clients.contains(&from) {
+                            clients.push(from.clone());
+                            self.game.handle_server_event(ServerEvent::Connected(from.clone()))
+                        }
+                        self.game.update(Duration::new(0, 0), commands, from)
+                    } else {
+                        true
+                    }
+                }
+                Err(e) => self.game.handle_server_event(ServerEvent::ExceptionOnRecv(e)),
+            };
             let state = self.game.draw(Duration::from_millis(1));
+            for to in &clients {
+                self.socket.send(state.clone(), to);
+            }
         }
     }
 }

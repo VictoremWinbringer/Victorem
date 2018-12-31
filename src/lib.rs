@@ -45,7 +45,14 @@ impl Client {
         self.socket.write(&command)
     }
 
-    pub fn recv() { unimplemented!() }
+    pub fn recv(&mut self) -> Result<Vec<u8>, Exception> {
+        let state = self.socket.read()?;
+        let (state, lost) = self.client.recv(state)?;
+        for command in lost {
+            self.socket.write(&command)?;
+        }
+        Ok(state)
+    }
 }
 
 //trait Game {

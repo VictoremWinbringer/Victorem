@@ -275,8 +275,8 @@ impl Server {
         self.arranger.add(command)?;
         let vec = self.arranger.get_valid();
         self.arranger.set_last_valid(&vec);
-        vec.into_iter()
+        Ok(vec.into_iter()
             .map(|v| v.command)
-            .collect()
+            .collect())
     }
 }

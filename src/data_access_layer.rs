@@ -166,7 +166,7 @@ impl Cache {
     pub fn get(&mut self, id: &u32) -> Option<CommandPacket> {
         self.data
             .iter()
-            .position(|c| c.id == id)
+            .position(|c| c.id == *id)
             .map(|i| self.data[i].clone())
     }
 

@@ -55,6 +55,23 @@ impl Client {
     }
 }
 
+struct Server {
+    socket: TypedServerSocket,
+    server: bll::Server,
+}
+
+
+impl Server {
+    pub fn send(&mut self, state: Vec<u8>, to: &SocketAddr) -> Result<usize, Exception> {
+        let state = self.server.send(state);
+        self.socket.write(to, &state)
+    }
+
+    pub fn recv(&mut self, command: CommandPacket) -> Result<(Vec<Vec<u8>>, SocketAddr), Exception> {
+        let command = self.socket.read()?;
+        unimplemented!()
+    }
+}
 //trait Game {
 //    fn update(&mut self, delta_time: std::time::Duration, commands: Vec<Vec<u8>>, from_address: &str) -> Vec<u8>;
 //}

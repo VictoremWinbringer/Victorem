@@ -16,6 +16,8 @@ use std::time::Duration;
 use crate::entities::{CommandPacket, StatePacket, Exception};
 use crate::data_access_layer::{TypedClientSocket, TypedServerSocket};
 use crate::business_logic_layer as bll;
+use std::sync::atomic::{AtomicBool, Ordering};
+
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ServerEvent {
@@ -24,8 +26,8 @@ pub enum ServerEvent {
 }
 
 pub trait Game {
-    fn update(&mut self, delta_time: Duration, command: Vec<u8>, from: SocketAddr);
-    fn draw(delta_time: Duration) -> Vec<u8>;
+    fn update(&mut self, delta_time: Duration, command: Vec<u8>, from: SocketAddr) -> bool;
+    fn draw(&mut self, delta_time: Duration) -> Vec<u8>;
     fn allow_connect(from: SocketAddr) -> bool {
         true
     }
@@ -62,6 +64,9 @@ pub struct ServerSocket {
 
 
 impl ServerSocket {
+    pub fn new(port: &str) -> Result<ServerSocket, Exception> {
+        Ok(ServerSocket { socket: TypedServerSocket::new(port)?, server: bll::Server::new() })
+    }
     pub fn send(&mut self, state: Vec<u8>, to: &SocketAddr) -> Result<usize, Exception> {
         let state = self.server.send(state);
         self.socket.write(to, &state)
@@ -74,17 +79,38 @@ impl ServerSocket {
     }
 }
 
+pub struct GameWrapper<T: Game> {
+    game: T,
+    socket: ServerSocket,
+}
+
+impl<T: Game> GameWrapper<T> {
+    fn new(game: T, port: &str) -> Result<GameWrapper<T>, Exception> {
+        Ok(GameWrapper {
+            game,
+            socket: ServerSocket::new(port)?,
+        })
+    }
+}
+
 pub struct GameServer<T: Game> {
     game: T,
+    socket: ServerSocket,
 }
 
 impl<T: Game> GameServer<T> {
-    pub fn run(){
-
+    fn new(game: T, port: &str) -> Result<GameServer<T>, Exception> {
+        Ok(GameServer {
+            game,
+            socket: ServerSocket::new(port)?,
+        })
     }
 
-    pub fn stop(){
-
+    pub fn run(&mut self) {
+        loop {
+            //  game.update(Duration::from_millis(1), Vec::new(), S)
+            let state = self.game.draw(Duration::from_millis(1));
+        }
     }
 }
 

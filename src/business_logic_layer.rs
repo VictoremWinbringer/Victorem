@@ -259,6 +259,15 @@ pub struct Server {
 }
 
 impl Server {
+    pub fn new() -> Server {
+        Server {
+            version: VersionChecker,
+            protocol: ProtocolChecker,
+            id: Generator { id: 1 },
+            arranger: Arranger { filter: Filter { id: 1 }, packets: HashMap::new() },
+        }
+    }
+
     pub fn send(&mut self, state: Vec<u8>) -> StatePacket {
         let mut state = StatePacket::new(state);
         let sr = &mut state;

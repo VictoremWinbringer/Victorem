@@ -34,12 +34,12 @@ pub trait Game {
     }
 }
 
-pub struct Client {
+pub struct ClientSocket {
     socket: TypedClientSocket,
     client: bll::Client,
 }
 
-impl Client {
+impl ClientSocket {
     pub fn send(&mut self, command: Vec<u8>) -> Result<usize, Exception> {
         let command = self.client.send(command);
         self.socket.write(&command)
@@ -55,23 +55,25 @@ impl Client {
     }
 }
 
-struct Server {
+struct ServerSocket {
     socket: TypedServerSocket,
     server: bll::Server,
 }
 
 
-impl Server {
-    pub fn send(&mut self, state: Vec<u8>, to: &SocketAddr) -> Result<usize, Exception> {
+impl ServerSocket {
+    fn send(&mut self, state: Vec<u8>, to: &SocketAddr) -> Result<usize, Exception> {
         let state = self.server.send(state);
         self.socket.write(to, &state)
     }
 
-    pub fn recv(&mut self, command: CommandPacket) -> Result<(Vec<Vec<u8>>, SocketAddr), Exception> {
-        let command = self.socket.read()?;
-        unimplemented!()
+    fn recv(&mut self) -> Result<(Vec<Vec<u8>>, SocketAddr), Exception> {
+        let (command, from) = self.socket.read()?;
+        let command = self.server.recv(command)?;
+        Ok((command, from))
     }
 }
+
 //trait Game {
 //    fn update(&mut self, delta_time: std::time::Duration, commands: Vec<Vec<u8>>, from_address: &str) -> Vec<u8>;
 //}

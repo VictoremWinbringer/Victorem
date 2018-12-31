@@ -229,10 +229,6 @@ impl Timer {
 }
 
 pub struct Client {
-    //    id: u32,
-    //    socket: TypedClientSocket,
-    //    last_recv_id: u32,
-    //    send_packets: HashMap<u32, CommandPacket>,
     version: VersionChecker,
     protocol: ProtocolChecker,
     id: Generator,
@@ -263,34 +259,26 @@ impl Client {
         }
         Ok((state.state, vec))
     }
-
-
-    //    fn recv_and_resend_lost_command(&mut self) -> Result<StatePacket, Exception> {
-    //        let packet = self.recv_ordered()?;
-    //        for id in packet.lost_ids.iter() {
-    //            self.send_packets.get(id)
-    //                .and_then(|p| self.socket.write(p)
-    //                    .map_err(|e| error!("on resend packet {:?}", e))
-    //                    .ok());
-    //        }
-    //        Ok(packet)
-    //    }
-    //
-    //    pub fn recv(&mut self) -> Result<Vec<u8>, Exception> {
-    //        let packet = self.recv_and_resend_lost_command()?;
-    //        Ok(packet.state)
-    //    }
 }
 
-struct Server {
-    // socket: TypedServerSocket
+pub struct Server {
+    version: VersionChecker,
+    protocol: ProtocolChecker,
+    id: Generator,
+    arranger: Arranger<CommandPacket>,
 }
 
 impl Server {
-    fn send(&mut self, state: Vec<u8>) -> StatePacket {
-        unimplemented!()
+    pub fn send(&mut self, state: Vec<u8>) -> StatePacket {
+        let mut state = StatePacket::new(state);
+        let sr = &mut state;
+        self.version.set(sr);
+        self.protocol.set(sr);
+        self.id.set(sr);
+        state.lost_ids = self.arranger.find_lost();
+        state
     }
-    fn recv(&mut self, command: CommandPacket) -> Vec<u8> {
+    pub fn recv(&mut self, command: CommandPacket) -> Vec<u8> {
         unimplemented!()
     }
 }

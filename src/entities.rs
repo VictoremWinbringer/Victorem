@@ -33,7 +33,7 @@ pub struct StatePacket {
 }
 
 impl StatePacket {
-    fn new(state: Vec<u8>) -> StatePacket {
+   pub fn new(state: Vec<u8>) -> StatePacket {
         StatePacket {
             protocol_id: 0,
             protocol_version: 0,

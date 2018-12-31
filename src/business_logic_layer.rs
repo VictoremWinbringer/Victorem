@@ -1,9 +1,9 @@
-use crate::entities::{CommandPacket, StatePacket, Exception};
+use crate::entities::{CommandPacket, Exception, StatePacket};
 //TODO: disconnect after 10 seconds and que to send one packet in 30 ms and send lost ids
-use std::collections::{HashMap, VecDeque};
-use std::time::{Duration, Instant};
-use std::thread;
 use crate::data_access_layer::Cache;
+use std::collections::{HashMap, VecDeque};
+use std::thread;
+use std::time::{Duration, Instant};
 
 const PROTOCOL_VERSION: u8 = 1;
 
@@ -47,7 +47,6 @@ impl VersionChecker {
         data.set(PROTOCOL_VERSION)
     }
 }
-
 
 const PROTOCOL_ID: u8 = 8;
 
@@ -118,7 +117,7 @@ impl IWithId for CommandPacket {
 }
 
 struct Generator {
-    id: u32
+    id: u32,
 }
 
 impl Generator {
@@ -129,11 +128,11 @@ impl Generator {
 }
 
 pub struct Filter {
-    id: u32
+    id: u32,
 }
 
 impl Filter {
-    pub fn valid(&self, data: &impl IWithId) -> Result<(), Exception> {
+    pub fn is_valid_last_recv_id(&self, data: &impl IWithId) -> Result<(), Exception> {
         if data.get() > self.id {
             Ok(())
         } else {
@@ -148,13 +147,12 @@ impl Filter {
         self.id
     }
 
-    pub fn filter_and_set(&mut self, data: &impl IWithId) -> Result<(), Exception> {
-        self.valid(data)?;
+    pub fn filter_and_set_last_recv_id(&mut self, data: &impl IWithId) -> Result<(), Exception> {
+        self.is_valid_last_recv_id(data)?;
         self.set(data.get());
         Ok(())
     }
 }
-
 
 struct Arranger<T: IWithId> {
     filter: Filter,
@@ -163,9 +161,8 @@ struct Arranger<T: IWithId> {
 
 impl<T: IWithId> Arranger<T> {
     pub fn add(&mut self, data: T) -> Result<(), Exception> {
-        self.filter.valid(&data)?;
-        self.packets.entry(data.get())
-            .or_insert(data);
+        self.filter.is_valid_last_recv_id(&data)?;
+        self.packets.entry(data.get()).or_insert(data);
         Ok(())
     }
 
@@ -177,7 +174,8 @@ impl<T: IWithId> Arranger<T> {
     }
 
     fn set_last_valid(&mut self, packets: &Vec<T>) {
-        packets.iter()
+        packets
+            .iter()
             .map(|p| p.get())
             .max()
             .map(|max| self.filter.set(max));
@@ -189,12 +187,12 @@ impl<T: IWithId> Arranger<T> {
             .max()
             .map(|max| (self.filter.get() + 1, max.clone()))
             .map(|(min, max)| min..=max)
-            .map(|range|
-                range.filter(|i| !self.packets.contains_key(i)))
+            .map(|range| range.filter(|i| !self.packets.contains_key(i)))
             .map(|filter| {
                 let ids: Vec<u32> = filter.collect();
                 ids
-            }).unwrap_or(Vec::new())
+            })
+            .unwrap_or(Vec::new())
     }
 
     fn find_valid(&mut self) -> Vec<T> {
@@ -216,10 +214,15 @@ struct Timer {
 impl Timer {
     fn wait(&mut self) {
         let elapsed = self.instant.elapsed();
-        self.time.checked_sub(elapsed)
-            .and_then(|d| if d == Duration::new(0, 0) {
-                None
-            } else { Some(d) })
+        self.time
+            .checked_sub(elapsed)
+            .and_then(|d| {
+                if d == Duration::new(0, 0) {
+                    None
+                } else {
+                    Some(d)
+                }
+            })
             .map(|d| thread::sleep(d));
         self.instant = Instant::now();
     }
@@ -227,73 +230,67 @@ impl Timer {
 
 pub struct Client {
     //    id: u32,
-//    socket: TypedClientSocket,
-//    last_recv_id: u32,
-//    send_packets: HashMap<u32, CommandPacket>,
+    //    socket: TypedClientSocket,
+    //    last_recv_id: u32,
+    //    send_packets: HashMap<u32, CommandPacket>,
     version: VersionChecker,
     protocol: ProtocolChecker,
     id: Generator,
     cache: Cache,
+    filter: Filter,
+    timer: Timer,
 }
 
 impl Client {
-    fn send(&mut self, command: Vec<u8>) -> CommandPacket {
+    pub fn send(&mut self, command: Vec<u8>) -> CommandPacket {
         let mut command = CommandPacket::new(command);
-        self.version.set(&command);
-        self.protocol.set(&command);
-        self.id.set(&command);
+        let cr = &mut command;
+        self.version.set(cr);
+        self.protocol.set(cr);
+        self.id.set(cr);
+        self.timer.wait();
         self.cache.add(command.clone());
         command
     }
-    fn recv(&mut self, state: StatePacket) -> (Vec<u8>, Vec<CommandPacket>) { unimplemented!() }
-//    const MAX_SAVED_PACKETS: usize = 6000;
-//
-//    pub fn new(port: &str, server_address: &str) -> Result<Client, Exception> {
-//        let socket = TypedClientSocket::new(port, server_address)?;
-//        Ok(Client { id: 1, socket, last_recv_id: 0, send_packets: HashMap::new() })
-//    }
-//
-//    fn write(&mut self, command: CommandPacket) -> Result<usize, Exception> {
-//        self.socket.write(&command)
-//    }
-//
-//    fn read(&mut self) -> Result<StatePacket, Exception> {
-//        self.socket.read()
-//    }
-//
-//    fn recv_ordered(&mut self) -> Result<StatePacket, Exception> {
-//        let packet = self.read()?;
-//        if packet.id <= self.id {
-//            Err(Exception::NotOrderedPacketError)
-//        } else {
-//            self.id = packet.id;
-//            Ok(packet)
-//        }
-//    }
-//
-//    fn recv_and_resend_lost_command(&mut self) -> Result<StatePacket, Exception> {
-//        let packet = self.recv_ordered()?;
-//        for id in packet.lost_ids.iter() {
-//            self.send_packets.get(id)
-//                .and_then(|p| self.socket.write(p)
-//                    .map_err(|e| error!("on resend packet {:?}", e))
-//                    .ok());
-//        }
-//        Ok(packet)
-//    }
-//
-//    pub fn recv(&mut self) -> Result<Vec<u8>, Exception> {
-//        let packet = self.recv_and_resend_lost_command()?;
-//        Ok(packet.state)
-//    }
-}
 
+    pub fn recv(&mut self, state: StatePacket) -> Result<(Vec<u8>, Vec<CommandPacket>), Exception> {
+        self.version.check(&state)?;
+        self.protocol.check(&state)?;
+        self.filter.filter_and_set_last_recv_id(&state)?;
+        let mut vec = Vec::<CommandPacket>::new();
+        for id in state.lost_ids {
+            self.cache.get(id).map(|p| vec.push(p));
+        }
+        Ok((state.state, vec))
+    }
+
+
+    //    fn recv_and_resend_lost_command(&mut self) -> Result<StatePacket, Exception> {
+    //        let packet = self.recv_ordered()?;
+    //        for id in packet.lost_ids.iter() {
+    //            self.send_packets.get(id)
+    //                .and_then(|p| self.socket.write(p)
+    //                    .map_err(|e| error!("on resend packet {:?}", e))
+    //                    .ok());
+    //        }
+    //        Ok(packet)
+    //    }
+    //
+    //    pub fn recv(&mut self) -> Result<Vec<u8>, Exception> {
+    //        let packet = self.recv_and_resend_lost_command()?;
+    //        Ok(packet.state)
+    //    }
+}
 
 struct Server {
     // socket: TypedServerSocket
 }
 
 impl Server {
-    fn send(&mut self, state: Vec<u8>) -> StatePacket { unimplemented!() }
-    fn recv(&mut self, command: CommandPacket) -> Vec<u8> { unimplemented!() }
+    fn send(&mut self, state: Vec<u8>) -> StatePacket {
+        unimplemented!()
+    }
+    fn recv(&mut self, command: CommandPacket) -> Vec<u8> {
+        unimplemented!()
+    }
 }

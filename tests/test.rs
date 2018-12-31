@@ -1,22 +1,23 @@
 use std::error::Error;
 use victorem;
 
-
 #[test]
 fn it_works() {
-    let mut id = AddOne { next: Some(Box::new(AddOne { next: None })) };
+    let mut id = AddOne {
+        next: Some(Box::new(AddOne { next: None })),
+    };
     let data = id.run(3);
-    let f = curry(1,add);
-    let f = compose(f,curry(1,add));
+    let f = curry(1, add);
+    let f = compose(f, curry(1, add));
     let data = f(3);
-        assert!(false, "{:?}", data);
+    assert!(false, "{:?}", data);
 }
 
 #[test]
-fn static_add(){
-  let mut f = add_static(3);
-    let data = format!("one {}, two {}, three {}",f(1),f(1),f(1));
-    let r:Vec<i32> = (1..=3).collect();
+fn static_add() {
+    let mut f = add_static(3);
+    let data = format!("one {}, two {}, three {}", f(1), f(1), f(1));
+    let r: Vec<i32> = (1..=3).collect();
     assert!(false, "{:#?}", r);
 }
 
@@ -32,25 +33,28 @@ trait Middleware<T> {
     }
 }
 
-fn compose<T:From<U>, U>(rhs: impl FnOnce(T) -> U, lhs: impl FnOnce(T) -> U) -> impl FnOnce(T) -> U {
-   move |x| lhs(rhs(x).into())
+fn compose<T: From<U>, U>(
+    rhs: impl FnOnce(T) -> U,
+    lhs: impl FnOnce(T) -> U,
+) -> impl FnOnce(T) -> U {
+    move |x| lhs(rhs(x).into())
 }
 
 fn curry<T, U, Z>(x: T, f: impl FnOnce(T, U) -> Z) -> impl FnOnce(U) -> Z {
-   move |y| f(x, y)
+    move |y| f(x, y)
 }
 
 fn add(x: i32, y: i32) -> i32 {
     x + y
 }
-fn add_static(mut x:i32) -> impl FnMut(i32)->i32{
-     move |y|{
-          x +=10;
-          x+y
-      }
+fn add_static(mut x: i32) -> impl FnMut(i32) -> i32 {
+    move |y| {
+        x += 10;
+        x + y
+    }
 }
 struct AddOne {
-    next: Option<Box<Middleware<i32>>>
+    next: Option<Box<Middleware<i32>>>,
 }
 
 impl Middleware<i32> for AddOne {
@@ -63,23 +67,25 @@ impl Middleware<i32> for AddOne {
     }
 }
 
-
-use std::ops::{Add, Mul};
 use std::borrow::Borrow;
+use std::ops::{Add, Mul};
 
 enum Operation {
     Add,
     Mul,
 }
 
-struct Calculator<T> where {
+struct Calculator<T> {
     pub op: Operation,
     pub lhs: T,
     pub rhs: T,
     pub result: Option<T>,
 }
 
-impl<'a, 'b: 'a, T: 'b + Add<Output=T> + Mul<Output=T> + Borrow<T>> Calculator<T> where &'a T: Add<Output=T> + Mul<Output=T> {
+impl<'a, 'b: 'a, T: 'b + Add<Output = T> + Mul<Output = T> + Borrow<T>> Calculator<T>
+where
+    &'a T: Add<Output = T> + Mul<Output = T>,
+{
     pub fn calculate_procedurally(&'b mut self) {
         let res: T = match self.op {
             Operation::Add => &self.lhs + &self.rhs,
@@ -89,14 +95,12 @@ impl<'a, 'b: 'a, T: 'b + Add<Output=T> + Mul<Output=T> + Borrow<T>> Calculator<T
     }
 }
 
-impl<T: Add<Output=T> + Mul<Output=T> + Clone> Calculator<T> {
+impl<T: Add<Output = T> + Mul<Output = T> + Clone> Calculator<T> {
     pub fn calculate_functionally(mut self) -> Self {
-        self.result = Some(
-            match self.op {
-                Operation::Add => self.lhs.clone() + self.rhs.clone(),
-                Operation::Mul => self.lhs.clone() * self.rhs.clone(),
-            }
-        );
+        self.result = Some(match self.op {
+            Operation::Add => self.lhs.clone() + self.rhs.clone(),
+            Operation::Mul => self.lhs.clone() * self.rhs.clone(),
+        });
         self
     }
 }

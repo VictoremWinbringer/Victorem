@@ -1,17 +1,35 @@
-mod entities;
-mod data_access_layer;
 mod business_logic_layer;
+mod data_access_layer;
+mod entities;
 
-use std::collections::VecDeque;
 use crate::entities::*;
-use std::error::Error;
-use std::sync::{Mutex, Arc};
-use std::thread;
 use log::error;
-use std::sync::mpsc;
-use std::time;
 use simplelog::LevelFilter;
+use std::collections::VecDeque;
+use std::error::Error;
+use std::sync::mpsc;
+use std::sync::{Arc, Mutex};
+use std::thread;
+use std::time;
+use std::net::SocketAddr;
+use std::time::Duration;
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum ServerEvent {
+    Connected(SocketAddr),
+    DisconnectedByTimeout(SocketAddr),
+}
+
+pub trait Game {
+    fn update(&mut self, delta_time: Duration, command: Vec<u8>, from: SocketAddr);
+    fn draw(delta_time: Duration) -> Vec<u8>;
+    fn allow_connect(from: SocketAddr) -> bool {
+        true
+    }
+    fn handle_server_event(event: ServerEvent) {
+        eprintln!("Handled {:#?}", event);
+    }
+}
 //trait Game {
 //    fn update(&mut self, delta_time: std::time::Duration, commands: Vec<Vec<u8>>, from_address: &str) -> Vec<u8>;
 //}

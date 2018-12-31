@@ -1,9 +1,9 @@
-use std::net::{UdpSocket, SocketAddr};
+use crate::entities::{CommandPacket, Exception, StatePacket};
+use bincode::{deserialize, serialize};
 use std::error::Error;
-use crate::entities::{StatePacket, CommandPacket, Exception};
-use bincode::{serialize, deserialize};
 use std::fmt::Display;
 use std::fmt::Formatter;
+use std::net::{SocketAddr, UdpSocket};
 
 struct ClientSocket {
     socket: UdpSocket,
@@ -101,7 +101,7 @@ impl BufferedClientSocket {
 }
 
 pub struct TypedServerSocket {
-    socket: BufferedServerSocket
+    socket: BufferedServerSocket,
 }
 
 impl TypedServerSocket {
@@ -123,7 +123,7 @@ impl TypedServerSocket {
 }
 
 pub struct TypedClientSocket {
-    socket: BufferedClientSocket
+    socket: BufferedClientSocket,
 }
 
 impl TypedClientSocket {
@@ -145,7 +145,7 @@ impl TypedClientSocket {
 }
 
 pub struct Cache {
-    data: Vec<CommandPacket>
+    data: Vec<CommandPacket>,
 }
 
 impl Cache {
@@ -153,7 +153,9 @@ impl Cache {
 
     pub fn add(&mut self, command: CommandPacket) {
         if self.data.len() > Cache::MAX_SAVED {
-            self.data = self.data.clone()
+            self.data = self
+                .data
+                .clone()
                 .into_iter()
                 .skip(Cache::MAX_SAVED / 2)
                 .collect();
@@ -162,27 +164,25 @@ impl Cache {
     }
 
     pub fn get(&mut self, id: u32) -> Option<CommandPacket> {
-        self.data.iter()
+        self.data
+            .iter()
             .position(|c| c.id == id)
-            .map(|i| self.data.remove(i))
+            .map(|i| self.data[i].clone())
     }
 }
 
-
 pub mod logger {
+    use crate::entities::Exception;
     use simplelog::*;
     use std::{fs::OpenOptions, io::Write};
-    use crate::entities::Exception;
 
     pub fn init(log_level: LevelFilter) -> Result<(), Exception> {
-        let mut file = OpenOptions::new().append(true).create(true).open("victorem_framework_logs.log")?;
+        let mut file = OpenOptions::new()
+            .append(true)
+            .create(true)
+            .open("victorem_framework_logs.log")?;
         let write_logger = WriteLogger::new(log_level, Config::default(), file);
-        CombinedLogger::init(
-            vec![
-                write_logger,
-            ]
-        )?;
+        CombinedLogger::init(vec![write_logger])?;
         Ok(())
     }
 }
-

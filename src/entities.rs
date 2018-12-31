@@ -1,4 +1,4 @@
-use serde_derive::{Serialize, Deserialize};
+use serde_derive::{Deserialize, Serialize};
 use std::convert::From;
 use std::error::Error;
 use std::fmt::Display;
@@ -8,13 +8,18 @@ use std::fmt::Formatter;
 pub struct CommandPacket {
     pub protocol_id: u8,
     pub protocol_version: u8,
-    pub  id: u32,
-    pub  command: Vec<u8>,
+    pub id: u32,
+    pub command: Vec<u8>,
 }
 
 impl CommandPacket {
     pub fn new(command: Vec<u8>) -> CommandPacket {
-        CommandPacket { protocol_id: 0, protocol_version: 0, id: 0, command }
+        CommandPacket {
+            protocol_id: 0,
+            protocol_version: 0,
+            id: 0,
+            command,
+        }
     }
 }
 
@@ -22,14 +27,20 @@ impl CommandPacket {
 pub struct StatePacket {
     pub protocol_id: u8,
     pub protocol_version: u8,
-    pub  id: u32,
+    pub id: u32,
     pub lost_ids: Vec<u32>,
     pub state: Vec<u8>,
 }
 
 impl StatePacket {
     fn new(state: Vec<u8>) -> StatePacket {
-        StatePacket { protocol_id: 0, protocol_version: 0, id: 0, lost_ids: Vec::new(), state }
+        StatePacket {
+            protocol_id: 0,
+            protocol_version: 0,
+            id: 0,
+            lost_ids: Vec::new(),
+            state,
+        }
     }
 }
 

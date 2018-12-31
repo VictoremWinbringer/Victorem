@@ -5,7 +5,7 @@ mod entities;
 use crate::entities::*;
 use log::error;
 use simplelog::LevelFilter;
-use std::collections::VecDeque;
+use std::collections::{VecDeque, HashMap};
 use std::error::Error;
 use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
@@ -62,23 +62,33 @@ impl ClientSocket {
 
 pub struct ServerSocket {
     socket: TypedServerSocket,
-    server: bll::Server,
+    servers: HashMap<SocketAddr, bll::Server>,
 }
 
 //TODO: fix Arranger logic for Address
 impl ServerSocket {
     pub fn new(port: &str) -> Result<ServerSocket, Exception> {
-        Ok(ServerSocket { socket: TypedServerSocket::new(port)?, server: bll::Server::new() })
+        Ok(ServerSocket { socket: TypedServerSocket::new(port)?, servers: HashMap::new() })
     }
     pub fn send(&mut self, state: Vec<u8>, to: &SocketAddr) -> Result<usize, Exception> {
-        let state = self.server.send(state);
+        if !self.servers.contains_key(to) {
+            self.servers.insert(to.clone(), bll::Server::new());
+        }
+        let state = self.servers.get_mut(to).unwrap().send(state);
         self.socket.write(to, &state)
     }
 
     pub fn recv(&mut self) -> Result<(Vec<Vec<u8>>, SocketAddr), Exception> {
         let (command, from) = self.socket.read()?;
-        let command = self.server.recv(command)?;
+        if !self.servers.contains_key(&from) {
+            self.servers.insert(from.clone(), bll::Server::new());
+        }
+        let command = self.servers.get_mut(&from).unwrap().recv(command)?;
         Ok((command, from))
+    }
+
+    pub fn remove(&mut self, client: &SocketAddr) {
+        self.servers.remove(&client);
     }
 }
 
@@ -128,6 +138,7 @@ impl<T: Game> GameServer<T> {
                         update = Instant::now();
                         run && self.game.update(elapsed, commands, from)
                     } else {
+                        self.socket.remove(&from);
                         true
                     }
                 }

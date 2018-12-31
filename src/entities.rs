@@ -3,6 +3,7 @@ use std::convert::From;
 use std::error::Error;
 use std::fmt::Display;
 use std::fmt::Formatter;
+use std::io;
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct CommandPacket {
@@ -44,9 +45,9 @@ impl StatePacket {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug)]
 pub enum Exception {
-    IoError(std::io::Error),
+    IoError(io::Error),
     BadProtocolVersion,
     BincodeError(bincode::Error),
     SetLoggerError(log::SetLoggerError),

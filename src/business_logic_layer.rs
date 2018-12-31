@@ -1,5 +1,4 @@
 use crate::entities::{CommandPacket, Exception, StatePacket};
-//TODO: disconnect after 10 seconds and que to send one packet in 30 ms and send lost ids
 use crate::data_access_layer::Cache;
 use std::collections::{HashMap, VecDeque};
 use std::thread;

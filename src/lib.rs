@@ -12,14 +12,14 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time;
 use std::net::SocketAddr;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use crate::entities::{CommandPacket, StatePacket, Exception};
 use crate::data_access_layer::{TypedClientSocket, TypedServerSocket};
 use crate::business_logic_layer as bll;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug)]
 pub enum ServerEvent {
     Connected(SocketAddr),
     DisconnectedByTimeout(SocketAddr),
@@ -65,7 +65,7 @@ pub struct ServerSocket {
     server: bll::Server,
 }
 
-
+//TODO: fix Arranger logic for Address
 impl ServerSocket {
     pub fn new(port: &str) -> Result<ServerSocket, Exception> {
         Ok(ServerSocket { socket: TypedServerSocket::new(port)?, server: bll::Server::new() })
@@ -112,24 +112,34 @@ impl<T: Game> GameServer<T> {
     pub fn run(&mut self) {
         let mut is_running = true;
         let mut clients = Vec::<SocketAddr>::new();
+        let mut draw = Instant::now();
+        let mut update = Instant::now();
+        let time = Duration::from_millis(30);
         while is_running {
             is_running = match self.socket.recv() {
                 Ok((commands, from)) => {
                     if self.game.allow_connect(&from) {
+                        let mut run = true;
                         if !clients.contains(&from) {
                             clients.push(from.clone());
-                            self.game.handle_server_event(ServerEvent::Connected(from.clone()))
+                            run = self.game.handle_server_event(ServerEvent::Connected(from.clone()));
                         }
-                        self.game.update(Duration::new(0, 0), commands, from)
+                        let elapsed = update.elapsed();
+                        update = Instant::now();
+                        run && self.game.update(elapsed, commands, from)
                     } else {
                         true
                     }
                 }
                 Err(e) => self.game.handle_server_event(ServerEvent::ExceptionOnRecv(e)),
             };
-            let state = self.game.draw(Duration::from_millis(1));
-            for to in &clients {
-                self.socket.send(state.clone(), to);
+            if draw.elapsed() > time {
+                draw = Instant::now();
+                let state = self.game.draw(Duration::from_millis(1));
+                for to in &clients {
+                    let res = self.socket.send(state.clone(), to)
+                        .map_err(|e| is_running = self.game.handle_server_event(ServerEvent::ExceptionOnSend((to.clone(), e))));
+                }
             }
         }
     }

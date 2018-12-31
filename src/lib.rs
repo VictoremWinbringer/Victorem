@@ -36,6 +36,12 @@ pub struct ClientSocket {
 }
 
 impl ClientSocket {
+    pub fn new(port: &str, server_address: &str) -> Result<ClientSocket, Exception> {
+        Ok(ClientSocket {
+            socket: TypedClientSocket::new(port, server_address)?,
+            client: bll::Client::new(),
+        })
+    }
     pub fn send(&mut self, command: Vec<u8>) -> Result<usize, Exception> {
         let command = self.client.send(command);
         self.socket.write(&command)

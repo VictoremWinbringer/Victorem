@@ -230,6 +230,19 @@ pub struct Client {
 }
 
 impl Client {
+    pub fn new() -> Client {
+        Client {
+            version: VersionChecker,
+            protocol: ProtocolChecker,
+            id: Generator { id: 1 },
+            cache: Cache::new(),
+            filter: Filter { id: 1 },
+            timer: Timer {
+                time: Duration::from_millis(30),
+                instant: Instant::now(),
+            },
+        }
+    }
     pub fn send(&mut self, command: Vec<u8>) -> CommandPacket {
         let mut command = CommandPacket::new(command);
         let cr = &mut command;

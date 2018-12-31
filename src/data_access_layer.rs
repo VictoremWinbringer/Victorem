@@ -146,7 +146,9 @@ pub struct Cache {
 
 impl Cache {
     const MAX_SAVED: usize = 10000;
-
+    pub fn new() -> Cache {
+        Cache { data: Vec::new() }
+    }
     pub fn add(&mut self, command: CommandPacket) {
         if self.data.len() > Cache::MAX_SAVED {
             self.data = self

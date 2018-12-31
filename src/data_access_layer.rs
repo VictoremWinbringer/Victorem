@@ -163,11 +163,19 @@ impl Cache {
         self.data.push(command);
     }
 
-    pub fn get(&mut self, id: u32) -> Option<CommandPacket> {
+    pub fn get(&mut self, id: &u32) -> Option<CommandPacket> {
         self.data
             .iter()
             .position(|c| c.id == id)
             .map(|i| self.data[i].clone())
+    }
+
+    pub fn get_range(&mut self, ids: &Vec<u32>) -> Vec<CommandPacket> {
+        let mut vec = Vec::<CommandPacket>::new();
+        for id in ids {
+            self.get(id).map(|p| vec.push(p));
+        }
+        vec
     }
 }
 

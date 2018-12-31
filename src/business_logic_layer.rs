@@ -253,10 +253,7 @@ impl Client {
         self.version.check(&state)?;
         self.protocol.check(&state)?;
         self.filter.filter_and_set_last_recv_id(&state)?;
-        let mut vec = Vec::<CommandPacket>::new();
-        for id in state.lost_ids {
-            self.cache.get(id).map(|p| vec.push(p));
-        }
+        let vec = self.cache.get_range(&state.lost_ids);
         Ok((state.state, vec))
     }
 }

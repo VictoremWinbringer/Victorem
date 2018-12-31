@@ -1,8 +1,5 @@
 use crate::entities::{CommandPacket, Exception, StatePacket};
 use bincode::{deserialize, serialize};
-use std::error::Error;
-use std::fmt::Display;
-use std::fmt::Formatter;
 use std::net::{SocketAddr, UdpSocket};
 
 struct ClientSocket {
@@ -17,7 +14,6 @@ const MAX_DATAGRAM_SIZE: usize = 65_000;
 
 impl ClientSocket {
     fn new(port: &str, server_address: &str) -> Result<ClientSocket, Exception> {
-        use std::time::Duration;
         let local_address = format!("127.0.0.1:{}", port.trim());
         let remote_address = server_address.trim();
         let socket = UdpSocket::bind(&local_address)?;
@@ -176,21 +172,5 @@ impl Cache {
             self.get(id).map(|p| vec.push(p));
         }
         vec
-    }
-}
-
-pub mod logger {
-    use crate::entities::Exception;
-    use simplelog::*;
-    use std::{fs::OpenOptions, io::Write};
-
-    pub fn init(log_level: LevelFilter) -> Result<(), Exception> {
-        let mut file = OpenOptions::new()
-            .append(true)
-            .create(true)
-            .open("victorem_framework_logs.log")?;
-        let write_logger = WriteLogger::new(log_level, Config::default(), file);
-        CombinedLogger::init(vec![write_logger])?;
-        Ok(())
     }
 }

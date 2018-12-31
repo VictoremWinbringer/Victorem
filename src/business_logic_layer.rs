@@ -1,6 +1,6 @@
 use crate::entities::{CommandPacket, Exception, StatePacket};
 use crate::data_access_layer::Cache;
-use std::collections::{HashMap, VecDeque};
+use std::collections::HashMap;
 use std::thread;
 use std::time::{Duration, Instant};
 

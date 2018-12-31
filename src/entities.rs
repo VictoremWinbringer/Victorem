@@ -1,5 +1,4 @@
 use serde_derive::{Deserialize, Serialize};
-use std::convert::From;
 use std::error::Error;
 use std::fmt::Display;
 use std::fmt::Formatter;
@@ -50,7 +49,6 @@ pub enum Exception {
     IoError(io::Error),
     BadProtocolVersion,
     BincodeError(bincode::Error),
-    SetLoggerError(log::SetLoggerError),
     NotOrderedPacketError,
     NotValidIdError,
 }
@@ -72,11 +70,5 @@ impl std::convert::From<std::io::Error> for Exception {
 impl std::convert::From<bincode::Error> for Exception {
     fn from(err: bincode::Error) -> Self {
         Exception::BincodeError(err)
-    }
-}
-
-impl std::convert::From<log::SetLoggerError> for Exception {
-    fn from(err: log::SetLoggerError) -> Self {
-        Exception::SetLoggerError(err)
     }
 }

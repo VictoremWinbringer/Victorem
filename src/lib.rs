@@ -2,21 +2,12 @@ mod business_logic_layer;
 mod data_access_layer;
 mod entities;
 
-use crate::entities::*;
-use log::error;
-use simplelog::LevelFilter;
-use std::collections::{VecDeque, HashMap};
-use std::error::Error;
-use std::sync::mpsc;
-use std::sync::{Arc, Mutex};
-use std::thread;
-use std::time;
+use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::time::{Duration, Instant};
-use crate::entities::{CommandPacket, StatePacket, Exception};
+use crate::entities::Exception;
 use crate::data_access_layer::{TypedClientSocket, TypedServerSocket};
 use crate::business_logic_layer as bll;
-use std::sync::atomic::{AtomicBool, Ordering};
 
 
 #[derive(Debug)]
@@ -30,7 +21,7 @@ pub enum ServerEvent {
 pub trait Game {
     fn update(&mut self, delta_time: Duration, commands: Vec<Vec<u8>>, from: SocketAddr) -> bool;
     fn draw(&mut self, delta_time: Duration) -> Vec<u8>;
-    fn allow_connect(&mut self, from: &SocketAddr) -> bool {
+    fn allow_connect(&mut self, _from: &SocketAddr) -> bool {
         true
     }
     fn handle_server_event(&mut self, event: ServerEvent) -> bool {
@@ -92,20 +83,6 @@ impl ServerSocket {
     }
 }
 
-pub struct GameWrapper<T: Game> {
-    game: T,
-    socket: ServerSocket,
-}
-
-impl<T: Game> GameWrapper<T> {
-    fn new(game: T, port: &str) -> Result<GameWrapper<T>, Exception> {
-        Ok(GameWrapper {
-            game,
-            socket: ServerSocket::new(port)?,
-        })
-    }
-}
-
 pub struct GameServer<T: Game> {
     game: T,
     socket: ServerSocket,
@@ -148,7 +125,7 @@ impl<T: Game> GameServer<T> {
                 draw = Instant::now();
                 let state = self.game.draw(Duration::from_millis(1));
                 for to in &clients {
-                    let res = self.socket.send(state.clone(), to)
+                    self.socket.send(state.clone(), to)
                         .map_err(|e| is_running = self.game.handle_server_event(ServerEvent::ExceptionOnSend((to.clone(), e))));
                 }
             }

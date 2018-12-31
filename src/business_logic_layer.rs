@@ -166,13 +166,6 @@ impl<T: IWithId> Arranger<T> {
         Ok(())
     }
 
-    pub fn get_valid_and_lost(&mut self) -> (Vec<T>, Vec<u32>) {
-        let packets = self.find_valid();
-        let lost_ids = self.find_lost();
-        self.set_last_valid(&packets);
-        (packets, lost_ids)
-    }
-
     fn set_last_valid(&mut self, packets: &Vec<T>) {
         packets
             .iter()
@@ -181,7 +174,7 @@ impl<T: IWithId> Arranger<T> {
             .map(|max| self.filter.set(max));
     }
 
-    fn find_lost(&self) -> Vec<u32> {
+    fn get_lost(&self) -> Vec<u32> {
         self.packets
             .keys()
             .max()
@@ -195,7 +188,7 @@ impl<T: IWithId> Arranger<T> {
             .unwrap_or(Vec::new())
     }
 
-    fn find_valid(&mut self) -> Vec<T> {
+    fn get_valid(&mut self) -> Vec<T> {
         let mut i = self.filter.get() + 1;
         let mut vec: Vec<T> = Vec::new();
         while self.packets.contains_key(&i) {
@@ -272,10 +265,18 @@ impl Server {
         self.version.set(sr);
         self.protocol.set(sr);
         self.id.set(sr);
-        state.lost_ids = self.arranger.find_lost();
+        state.lost_ids = self.arranger.get_lost();
         state
     }
-    pub fn recv(&mut self, command: CommandPacket) -> Vec<u8> {
-        unimplemented!()
+
+    pub fn recv(&mut self, command: CommandPacket) -> Result<Vec<Vec<u8>>, Exception> {
+        self.version.check(&command)?;
+        self.protocol.check(&command)?;
+        self.arranger.add(command)?;
+        let vec = self.arranger.get_valid();
+        self.arranger.set_last_valid(&vec);
+        vec.into_iter()
+            .map(|v| v.command)
+            .collect()
     }
 }

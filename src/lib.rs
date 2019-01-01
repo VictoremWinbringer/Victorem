@@ -1,6 +1,6 @@
 mod business_logic_layer;
 mod data_access_layer;
-mod entities;
+pub mod entities;
 
 use std::collections::HashMap;
 use std::net::SocketAddr;
@@ -26,7 +26,6 @@ pub trait Game {
         true
     }
     fn handle_server_event(&mut self, event: ServerEvent) -> ContinueRunning {
-        eprintln!("Handled {:#?}", event);
         true
     }
     fn add_client(&mut self) -> Option<SocketAddr> {
@@ -114,7 +113,7 @@ pub struct GameServer<T: Game> {
 }
 
 impl<T: Game> GameServer<T> {
-    fn new(game: T, port: &str) -> Result<GameServer<T>, Exception> {
+    pub fn new(game: T, port: &str) -> Result<GameServer<T>, Exception> {
         Ok(GameServer {
             game,
             socket: ServerSocket::new(port)?,
@@ -139,13 +138,14 @@ impl<T: Game> GameServer<T> {
             self.is_running = self.socket.send_to_all(state)
                 .into_iter()
                 .map(|ex|
-                    self.game.handle_server_event(ServerEvent::ExceptionOnSend(ex)))
+                    self.game.handle_server_event(ServerEvent::ExceptionOnSend(ex))
+                )
                 .all(|b| b);
         }
     }
 
 
-    pub fn update(&mut self) {
+    fn update(&mut self) {
         self.socket.recv()
             .map(|(commands, from)| {
                 if self.game.allow_connect(&from) {
@@ -161,7 +161,8 @@ impl<T: Game> GameServer<T> {
             })
             .map_err(|e|
                 self.is_running = self.game
-                    .handle_server_event(ServerEvent::ExceptionOnRecv(e)));
+                    .handle_server_event(ServerEvent::ExceptionOnRecv(e))
+            );
     }
 }
 

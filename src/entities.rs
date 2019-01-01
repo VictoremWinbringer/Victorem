@@ -72,3 +72,44 @@ impl std::convert::From<bincode::Error> for Exception {
         Exception::BincodeError(err)
     }
 }
+
+#[derive(Debug)]
+pub struct LoggerMonad<T>(Result<T, Exception>);
+
+impl<T> LoggerMonad<T> {
+    pub fn new(value: Result<T, Exception>) -> LoggerMonad<T> {
+        LoggerMonad(value)
+    }
+
+    pub fn and_then<U, F: FnOnce(T) -> LoggerMonad<U>>(self, f: F) -> LoggerMonad<U> {
+        match self.0 {
+            Ok(x) => {
+                let monad = f(x);
+                match &monad.0 {
+                    Ok(_) => monad,
+                    Err(e) => {
+                        eprintln!("{:#?}", e);
+                        monad
+                    }
+                }
+            }
+            Err(e) => LoggerMonad::new(Err(e))
+        }
+    }
+
+    pub fn map<U, F: FnOnce(T) -> U>(self, f: F) -> LoggerMonad<U> {
+        self.and_then(|x| LoggerMonad::new(Ok(f(x))))
+    }
+
+    pub fn and<U>(self, data: LoggerMonad<U>) -> LoggerMonad<U> {
+        self.and_then(|_| data)
+    }
+
+    pub fn unwrap(self) -> T {
+        self.0.unwrap()
+    }
+
+    pub fn unwrap_or(self, def: T) -> T {
+        self.0.unwrap_or(def)
+    }
+}

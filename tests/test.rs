@@ -1,5 +1,91 @@
-use std::error::Error;
 use victorem;
+use std::borrow::Borrow;
+use std::ops::{Add, Mul};
+use std::time::Duration;
+use std::net::SocketAddr;
+use victorem::{ContinueRunning, Game, ServerEvent, ClientSocket, GameServer, entities::Exception};
+use std::error::Error;
+use std::thread;
+
+struct GameData {
+    events: Vec<ServerEvent>,
+    updates: Vec<(Duration, Vec<Vec<u8>>, SocketAddr)>,
+    continue_running: bool,
+    disconnect_this_client: bool,
+    draw: Vec<u8>,
+    drawn: Vec<Duration>,
+    new_client: Option<SocketAddr>,
+    disconnect_on_event: bool,
+}
+
+impl GameData {
+    fn new() -> GameData {
+        GameData {
+            events: Vec::new(),
+            updates: Vec::new(),
+            continue_running: true,
+            disconnect_this_client: false,
+            draw: Vec::new(),
+            drawn: Vec::new(),
+            new_client: Some(
+                SocketAddr::new(
+                    std::net::IpAddr::V4(
+                        std::net::Ipv4Addr::new(127, 0, 0, 1)
+                    ),
+                    7777,
+                )
+            ),
+            disconnect_on_event: false,
+        }
+    }
+}
+
+struct GameMock<'a> {
+    data: &'a mut GameData
+}
+
+impl<'a> GameMock<'a> {
+    fn new(data: &'a mut GameData) -> GameMock {
+        GameMock { data }
+    }
+}
+
+impl<'a> Game for GameMock<'a> {
+    fn update(&mut self, delta_time: Duration, commands: Vec<Vec<u8>>, from: SocketAddr) -> (bool, bool) {
+        self.data.updates.push((delta_time, commands, from));
+        (self.data.continue_running, self.data.disconnect_this_client)
+    }
+
+    fn draw(&mut self, delta_time: Duration) -> Vec<u8> {
+        self.data.drawn.push(delta_time);
+        self.data.draw.clone()
+    }
+
+    fn handle_server_event(&mut self, event: ServerEvent) -> ContinueRunning {
+        self.data.events.push(event);
+        self.data.disconnect_on_event.clone()
+    }
+    fn add_client(&mut self) -> Option<SocketAddr> {
+        self.data.new_client.clone()
+    }
+}
+
+fn crate_client() -> Result<ClientSocket, Exception> {
+    ClientSocket::new("1111", "127.0.0.1:2222")
+}
+
+fn create_server(game: GameMock) -> Result<GameServer<GameMock>, Exception> {
+    GameServer::new(game, "2222")
+}
+
+#[test]
+fn server_works() -> Result<(), Exception> {
+    let mut b = Box::new(1);
+    *b = 2;
+    let vec = [1u8;2000000];
+    assert!(false, "{:?}", *b);
+    Ok(())
+}
 
 #[test]
 fn it_works() {
@@ -68,9 +154,6 @@ impl Middleware<i32> for AddOne {
         &mut self.next
     }
 }
-
-use std::borrow::Borrow;
-use std::ops::{Add, Mul};
 
 enum Operation {
     Add,

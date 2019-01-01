@@ -10,7 +10,7 @@ struct ServerSocket {
     socket: UdpSocket,
 }
 
-const MAX_DATAGRAM_SIZE: usize = 65_000;
+const MAX_DATAGRAM_SIZE: usize = 64_000;
 
 impl ClientSocket {
     fn new(port: &str, server_address: &str) -> Result<ClientSocket, Exception> {
@@ -54,13 +54,13 @@ impl ServerSocket {
 
 struct BufferedServerSocket {
     socket: ServerSocket,
-    buffer: [u8; MAX_DATAGRAM_SIZE],
+    buffer: Box<Vec<u8>>,
 }
 
 impl BufferedServerSocket {
     fn new(port: &str) -> Result<BufferedServerSocket, Exception> {
         let socket = ServerSocket::new(port)?;
-        let buffer = [0u8; MAX_DATAGRAM_SIZE];
+        let buffer = Box::new(vec![0u8; MAX_DATAGRAM_SIZE]);
         Ok(BufferedServerSocket { socket, buffer })
     }
 
@@ -76,13 +76,13 @@ impl BufferedServerSocket {
 
 struct BufferedClientSocket {
     socket: ClientSocket,
-    buffer: [u8; MAX_DATAGRAM_SIZE],
+    buffer: Box<Vec<u8>>,
 }
 
 impl BufferedClientSocket {
     fn new(port: &str, server_address: &str) -> Result<BufferedClientSocket, Exception> {
         let socket = ClientSocket::new(port, server_address)?;
-        let buffer = [0u8; MAX_DATAGRAM_SIZE];
+        let buffer = Box::new(vec![0u8; MAX_DATAGRAM_SIZE]);
         Ok(BufferedClientSocket { socket, buffer })
     }
 
@@ -145,7 +145,7 @@ pub struct Cache {
 }
 
 impl Cache {
-    const MAX_SAVED: usize = 10000;
+    const MAX_SAVED: usize = 1000;
     pub fn new() -> Cache {
         Cache { data: Vec::new() }
     }

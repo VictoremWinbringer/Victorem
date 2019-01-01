@@ -10,7 +10,7 @@ struct ServerSocket {
     socket: UdpSocket,
 }
 
-const MAX_DATAGRAM_SIZE: usize = 64_000;
+pub const MAX_DATAGRAM_SIZE: usize = 64_000;
 
 impl ClientSocket {
     fn new(port: &str, server_address: &str) -> Result<ClientSocket, Exception> {
@@ -145,7 +145,7 @@ pub struct Cache {
 }
 
 impl Cache {
-    const MAX_SAVED: usize = 1000;
+    const MAX_SAVED: usize = 2000;
     pub fn new() -> Cache {
         Cache { data: Vec::new() }
     }

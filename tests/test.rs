@@ -3,7 +3,7 @@ use std::borrow::Borrow;
 use std::ops::{Add, Mul};
 use std::time::Duration;
 use std::net::SocketAddr;
-use victorem::{ContinueRunning, Game, ServerEvent, ClientSocket, GameServer, entities::Exception};
+use victorem::{ContinueRunning, Game, ServerEvent, ClientSocket, GameServer,Exception};
 use std::error::Error;
 use std::thread;
 

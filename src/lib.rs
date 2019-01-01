@@ -1,55 +1,88 @@
 mod business_logic_layer;
 mod data_access_layer;
-pub mod entities;
+mod entities;
 
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::time::{Duration, Instant};
-use crate::entities::Exception;
+pub use crate::entities::Exception;
 use crate::data_access_layer::{TypedClientSocket, TypedServerSocket};
 use crate::business_logic_layer as bll;
-
+pub use crate::data_access_layer::MAX_DATAGRAM_SIZE;
 
 #[derive(Debug)]
+///Events from server
 pub enum ServerEvent {
+    ///Error on read data from socket
     ExceptionOnRecv(Exception),
+    ///Error on write data to socket
     ExceptionOnSend((SocketAddr, Exception)),
 }
 
 pub type ContinueRunning = bool;
 pub type DisconnectThisClient = bool;
 
+///Game to use with server must implement this trait
 pub trait Game {
+    /// delta_time: time elapsed from last call
+    /// command: ordered commands commands from server
+    /// from: Address of command sender
+    /// returns tuple with bool value indicating
+    /// 1) should server continue running if false stops server
+    /// 2) disconnect this client. if true dont send new server state to this client
     fn update(&mut self, delta_time: Duration, commands: Vec<Vec<u8>>, from: SocketAddr) -> (ContinueRunning, DisconnectThisClient);
+    ///gets new state to send to client
+    /// delta_time: time elapsed throw last call
+    /// returns bytes with new game state for client
+    /// called once in about 30 milliseconds
     fn draw(&mut self, delta_time: Duration) -> Vec<u8>;
+    ///allow client with this IP Address work with server
+    /// if false server don't send new state to this client
+    /// usually don't implement this method. Use default implementation
     fn allow_connect(&mut self, _from: &SocketAddr) -> bool {
         true
     }
+    ///Handles events from server
+    /// returns bool value
+    /// if returns false stops server
+  /// usually don't implement this method. Use default implementation
     fn handle_server_event(&mut self, event: ServerEvent) -> ContinueRunning {
         true
     }
+    ///Client to add to recv state from serve
+    /// if returns not None then servers on draw sends new state to this client
+    /// if client with this IP Address already connected then nothing happens
+  /// usually don't implement this method. Use default implementation
     fn add_client(&mut self) -> Option<SocketAddr> {
         None
     }
 }
 
+/// Client used to communicate with server. Must be singleton in your app
 pub struct ClientSocket {
     socket: TypedClientSocket,
     client: bll::Client,
 }
 
 impl ClientSocket {
+    ///Create new client and listen on port to recv packets from server_address and send its to them
     pub fn new(port: &str, server_address: &str) -> Result<ClientSocket, Exception> {
         Ok(ClientSocket {
             socket: TypedClientSocket::new(port, server_address)?,
             client: bll::Client::new(),
         })
     }
+    ///Send data to server
+   /// Don't block current thread
+   /// may wait up to 30 milliseconds if you send commands too often
     pub fn send(&mut self, command: Vec<u8>) -> Result<usize, Exception> {
         let command = self.client.send(command);
         self.socket.write(&command)
     }
 
+    ///Reads data fro server
+    /// Don't block current thread
+    /// Return None if there is no data available
     pub fn recv(&mut self) -> Result<Vec<u8>, Exception> {
         let state = self.socket.read()?;
         let (state, lost) = self.client.recv(state)?;
@@ -103,6 +136,7 @@ impl ServerSocket {
 
 const DRAW_PERIOD_IN_MILLIS: u64 = 30;
 
+///Game server to run game
 pub struct GameServer<T: Game> {
     game: T,
     socket: ServerSocket,
@@ -113,6 +147,7 @@ pub struct GameServer<T: Game> {
 }
 
 impl<T: Game> GameServer<T> {
+    ///Crates new server listening port
     pub fn new(game: T, port: &str) -> Result<GameServer<T>, Exception> {
         Ok(GameServer {
             game,
@@ -123,7 +158,8 @@ impl<T: Game> GameServer<T> {
             draw_elapsed: bll::ElapsedTimer::new(),
         })
     }
-
+    ///Runs game update - draw circle
+    /// blocks current thread
     pub fn run(&mut self) {
         while self.is_running {
             self.update();

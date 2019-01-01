@@ -1,6 +1,6 @@
 extern crate victorem;
 
-use victorem::entities::*;
+use victorem::*;
 
 fn main() {
     let mut client = victorem::ClientSocket::new("1111", "127.0.0.1:2222").unwrap();

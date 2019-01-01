@@ -102,9 +102,14 @@ impl ServerSocket {
     }
 }
 
+const TIME: Duration = Duration::from_millis(30);
+
 pub struct GameServer<T: Game> {
     game: T,
     socket: ServerSocket,
+    is_running: bool,
+    draw: Instant,
+    update: Instant,
 }
 
 impl<T: Game> GameServer<T> {
@@ -112,43 +117,52 @@ impl<T: Game> GameServer<T> {
         Ok(GameServer {
             game,
             socket: ServerSocket::new(port)?,
+            is_running: true,
+            draw: Instant::now(),
+            update: Instant::now(),
         })
     }
 
     pub fn run(&mut self) {
-        let mut is_running = true;
-        let mut draw = Instant::now();
-        let mut update = Instant::now();
-        let time = Duration::from_millis(30);
-        while is_running {
-            is_running = match self.socket.recv() {
-                Ok((commands, from)) => {
-                    if self.game.allow_connect(&from) {
-                        let mut run = true;
-                        let elapsed = update.elapsed();
-                        update = Instant::now();
-                        let (continue_running, disconnect_this_client) = self.game.update(elapsed, commands, from);
-                        if disconnect_this_client {
-                            self.socket.remove(&from);
-                        }
-                        run && continue_running
-                    } else {
-                        self.socket.remove(&from);
-                        true
-                    }
-                }
-                Err(e) => self.game.handle_server_event(ServerEvent::ExceptionOnRecv(e)),
-            };
-            if draw.elapsed() > time {
-                draw = Instant::now();
-                let state = self.game.draw(Duration::from_millis(1));
-                self.game.add_client().map(|a| self.socket.add(&a));
-                is_running = self.socket.send_to_all(state)
-                    .into_iter()
-                    .map(|ex| self.game.handle_server_event(ServerEvent::ExceptionOnSend(ex)))
-                    .all(|b| b);
-            }
+        while self.is_running {
+            self.update();
+            self.draw()
+        };
+    }
+
+    fn draw(&mut self) {
+        if self.draw.elapsed() > TIME {
+            let elapsed = self.draw.elapsed();
+            self.draw = Instant::now();
+            let state = self.game.draw(elapsed);
+            self.game.add_client().map(|a| self.socket.add(&a));
+            self.is_running = self.socket.send_to_all(state)
+                .into_iter()
+                .map(|ex| self.game.handle_server_event(ServerEvent::ExceptionOnSend(ex)))
+                .all(|b| b);
         }
+    }
+
+
+    pub fn update(&mut self) {
+        self.socket.recv()
+            .map(|(commands, from)| {
+                if self.game.allow_connect(&from) {
+                    let elapsed = self.update.elapsed();
+                    self.update = Instant::now();
+                    let (continue_running, disconnect_this_client) = self.game
+                        .update(elapsed, commands, from);
+                    if disconnect_this_client {
+                        self.socket.remove(&from);
+                    }
+                    self.is_running = continue_running;
+                } else {
+                    self.socket.remove(&from);
+                }
+            })
+            .map_err(|e|
+                self.is_running = self.game
+                    .handle_server_event(ServerEvent::ExceptionOnRecv(e)));
     }
 }
 

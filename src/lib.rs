@@ -28,9 +28,8 @@ pub trait Game {
     /// command: ordered commands commands from server
     /// from: Address of command sender
     /// returns tuple with bool value indicating
-    /// 1) should server continue running if false stops server
-    /// 2) disconnect this client. if true dont send new server state to this client
-    fn update(&mut self, delta_time: Duration, commands: Vec<Vec<u8>>, from: SocketAddr) -> (ContinueRunning, DisconnectThisClient);
+    /// should server continue running if false stops server
+    fn update(&mut self, delta_time: Duration, commands: Vec<Vec<u8>>, from: SocketAddr) -> ContinueRunning;
     ///gets new state to send to client
     /// delta_time: time elapsed throw last call
     /// returns bytes with new game state for client
@@ -52,8 +51,12 @@ pub trait Game {
     ///Client to add to recv state from serve
     /// if returns not None then servers on draw sends new state to this client
     /// if client with this IP Address already connected then nothing happens
-  /// usually don't implement this method. Use default implementation
+    /// usually don't implement this method. Use default implementation
     fn add_client(&mut self) -> Option<SocketAddr> {
+        None
+    }
+    ///Disconnect this client from server and don't send new state to them
+    fn remove_client(&mut self) -> Option<SocketAddr> {
         None
     }
 }
@@ -171,6 +174,7 @@ impl<T: Game> GameServer<T> {
         if self.draw.to_continue() {
             let state = self.game.draw(self.draw_elapsed.elapsed());
             self.game.add_client().map(|a| self.socket.add(&a));
+            self.game.remove_client().map(|a| self.socket.remove(&a));
             self.is_running = self.socket.send_to_all(state)
                 .into_iter()
                 .map(|ex|
@@ -185,12 +189,8 @@ impl<T: Game> GameServer<T> {
         self.socket.recv()
             .map(|(commands, from)| {
                 if self.game.allow_connect(&from) {
-                    let (continue_running, disconnect_this_client) = self.game
+                    self.is_running = self.game
                         .update(self.update.elapsed(), commands, from);
-                    if disconnect_this_client {
-                        self.socket.remove(&from);
-                    }
-                    self.is_running = continue_running;
                 } else {
                     self.socket.remove(&from);
                 }

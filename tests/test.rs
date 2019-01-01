@@ -3,7 +3,7 @@ use std::borrow::Borrow;
 use std::ops::{Add, Mul};
 use std::time::Duration;
 use std::net::SocketAddr;
-use victorem::{ContinueRunning, Game, ServerEvent, ClientSocket, GameServer,Exception};
+use victorem::{ContinueRunning, Game, ServerEvent, ClientSocket, GameServer, Exception};
 use std::error::Error;
 use std::thread;
 
@@ -78,11 +78,16 @@ fn create_server(game: GameMock) -> Result<GameServer<GameMock>, Exception> {
     GameServer::new(game, "2222")
 }
 
+fn crate_second_client() -> Result<ClientSocket, Exception> {
+    ClientSocket::new("3333", "127.0.0.1:2222")
+}
+
+
 #[test]
 fn server_works() -> Result<(), Exception> {
     let mut b = Box::new(1);
     *b = 2;
-    let vec = [1u8;2000000];
+    let vec = [1u8; 2000000];
     assert!(false, "{:?}", *b);
     Ok(())
 }

@@ -29,7 +29,7 @@ pub trait Game {
         eprintln!("Handled {:#?}", event);
         true
     }
-    fn add_client() -> Option<SocketAddr> {
+    fn add_client(&mut self) -> Option<SocketAddr> {
         None
     }
 }
@@ -142,10 +142,11 @@ impl<T: Game> GameServer<T> {
             if draw.elapsed() > time {
                 draw = Instant::now();
                 let state = self.game.draw(Duration::from_millis(1));
-                let errors = self.socket.send_to_all(state);
-                for ex in errors {
-                    is_running = self.game.handle_server_event(ServerEvent::ExceptionOnSend(ex))
-                }
+                self.game.add_client().map(|a| self.socket.add(&a));
+                is_running = self.socket.send_to_all(state)
+                    .into_iter()
+                    .map(|ex| self.game.handle_server_event(ServerEvent::ExceptionOnSend(ex)))
+                    .all(|b| b);
             }
         }
     }

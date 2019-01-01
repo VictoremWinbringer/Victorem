@@ -12,21 +12,25 @@ use crate::business_logic_layer as bll;
 
 #[derive(Debug)]
 pub enum ServerEvent {
-    Connected(SocketAddr),
-    DisconnectedByTimeout(SocketAddr),
     ExceptionOnRecv(Exception),
     ExceptionOnSend((SocketAddr, Exception)),
 }
 
+pub type ContinueRunning = bool;
+pub type DisconnectThisClient = bool;
+
 pub trait Game {
-    fn update(&mut self, delta_time: Duration, commands: Vec<Vec<u8>>, from: SocketAddr) -> bool;
+    fn update(&mut self, delta_time: Duration, commands: Vec<Vec<u8>>, from: SocketAddr) -> (ContinueRunning, DisconnectThisClient);
     fn draw(&mut self, delta_time: Duration) -> Vec<u8>;
     fn allow_connect(&mut self, _from: &SocketAddr) -> bool {
         true
     }
-    fn handle_server_event(&mut self, event: ServerEvent) -> bool {
+    fn handle_server_event(&mut self, event: ServerEvent) -> ContinueRunning {
         eprintln!("Handled {:#?}", event);
         true
+    }
+    fn add_client() -> Option<SocketAddr> {
+        None
     }
 }
 
@@ -57,35 +61,44 @@ impl ClientSocket {
     }
 }
 
-pub struct ServerSocket {
+struct ServerSocket {
     socket: TypedServerSocket,
     servers: HashMap<SocketAddr, bll::Server>,
 }
 
-//TODO: fix Arranger logic for Address
 impl ServerSocket {
     pub fn new(port: &str) -> Result<ServerSocket, Exception> {
         Ok(ServerSocket { socket: TypedServerSocket::new(port)?, servers: HashMap::new() })
     }
-    pub fn send(&mut self, state: Vec<u8>, to: &SocketAddr) -> Result<usize, Exception> {
-        if !self.servers.contains_key(to) {
-            self.servers.insert(to.clone(), bll::Server::new());
-        }
-        let state = self.servers.get_mut(to).unwrap().send(state);
-        self.socket.write(to, &state)
-    }
 
     pub fn recv(&mut self) -> Result<(Vec<Vec<u8>>, SocketAddr), Exception> {
         let (command, from) = self.socket.read()?;
-        if !self.servers.contains_key(&from) {
-            self.servers.insert(from.clone(), bll::Server::new());
-        }
+        self.add(&from);
         let command = self.servers.get_mut(&from).unwrap().recv(command)?;
         Ok((command, from))
     }
 
     pub fn remove(&mut self, client: &SocketAddr) {
         self.servers.remove(&client);
+    }
+
+    pub fn contains(&self, client: &SocketAddr) -> bool {
+        self.servers.contains_key(client)
+    }
+
+    pub fn add(&mut self, client: &SocketAddr) {
+        if !self.servers.contains_key(client) {
+            self.servers.insert(client.clone(), bll::Server::new());
+        }
+    }
+
+    pub fn send_to_all(&mut self, state: Vec<u8>) -> Vec<(SocketAddr, Exception)> {
+        let mut exceptions = Vec::new();
+        for (a, s) in &mut self.servers {
+            self.socket.write(a, &s.send(state.clone()))
+                .map_err(|e| exceptions.push((a.clone(), e)));
+        }
+        exceptions
     }
 }
 
@@ -104,7 +117,6 @@ impl<T: Game> GameServer<T> {
 
     pub fn run(&mut self) {
         let mut is_running = true;
-        let mut clients = Vec::<SocketAddr>::new();
         let mut draw = Instant::now();
         let mut update = Instant::now();
         let time = Duration::from_millis(30);
@@ -113,13 +125,13 @@ impl<T: Game> GameServer<T> {
                 Ok((commands, from)) => {
                     if self.game.allow_connect(&from) {
                         let mut run = true;
-                        if !clients.contains(&from) {
-                            clients.push(from.clone());
-                            run = self.game.handle_server_event(ServerEvent::Connected(from.clone()));
-                        }
                         let elapsed = update.elapsed();
                         update = Instant::now();
-                        run && self.game.update(elapsed, commands, from)
+                        let (continue_running, disconnect_this_client) = self.game.update(elapsed, commands, from);
+                        if disconnect_this_client {
+                            self.socket.remove(&from);
+                        }
+                        run && continue_running
                     } else {
                         self.socket.remove(&from);
                         true
@@ -130,9 +142,9 @@ impl<T: Game> GameServer<T> {
             if draw.elapsed() > time {
                 draw = Instant::now();
                 let state = self.game.draw(Duration::from_millis(1));
-                for to in &clients {
-                    self.socket.send(state.clone(), to)
-                        .map_err(|e| is_running = self.game.handle_server_event(ServerEvent::ExceptionOnSend((to.clone(), e))));
+                let errors = self.socket.send_to_all(state);
+                for ex in errors {
+                    is_running = self.game.handle_server_event(ServerEvent::ExceptionOnSend(ex))
                 }
             }
         }

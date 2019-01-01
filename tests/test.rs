@@ -1,17 +1,16 @@
-use victorem;
 use std::borrow::Borrow;
+use std::error::Error;
+use std::net::SocketAddr;
 use std::ops::{Add, Mul};
 use std::time::Duration;
-use std::net::SocketAddr;
-use victorem::{ContinueRunning, Game, ServerEvent, ClientSocket, GameServer, Exception};
-use std::error::Error;
-use std::thread;
+use victorem;
+use victorem::{ClientSocket, ContinueRunning, Exception, Game, GameServer, ServerEvent};
 
 struct GameData {
     events: Vec<ServerEvent>,
     updates: Vec<(Duration, Vec<Vec<u8>>, SocketAddr)>,
     continue_running: bool,
-    disconnect_this_client: bool,
+    disconnect_this_client: Option<SocketAddr>,
     draw: Vec<u8>,
     drawn: Vec<Duration>,
     new_client: Option<SocketAddr>,
@@ -24,24 +23,20 @@ impl GameData {
             events: Vec::new(),
             updates: Vec::new(),
             continue_running: true,
-            disconnect_this_client: false,
+            disconnect_this_client: None,
             draw: Vec::new(),
             drawn: Vec::new(),
-            new_client: Some(
-                SocketAddr::new(
-                    std::net::IpAddr::V4(
-                        std::net::Ipv4Addr::new(127, 0, 0, 1)
-                    ),
-                    7777,
-                )
-            ),
+            new_client: Some(SocketAddr::new(
+                std::net::IpAddr::V4(std::net::Ipv4Addr::new(127, 0, 0, 1)),
+                7777,
+            )),
             disconnect_on_event: false,
         }
     }
 }
 
 struct GameMock<'a> {
-    data: &'a mut GameData
+    data: &'a mut GameData,
 }
 
 impl<'a> GameMock<'a> {
@@ -51,9 +46,9 @@ impl<'a> GameMock<'a> {
 }
 
 impl<'a> Game for GameMock<'a> {
-    fn update(&mut self, delta_time: Duration, commands: Vec<Vec<u8>>, from: SocketAddr) -> (bool, bool) {
+    fn update(&mut self, delta_time: Duration, commands: Vec<Vec<u8>>, from: SocketAddr) -> bool {
         self.data.updates.push((delta_time, commands, from));
-        (self.data.continue_running, self.data.disconnect_this_client)
+        self.data.continue_running
     }
 
     fn draw(&mut self, delta_time: Duration) -> Vec<u8> {
@@ -82,13 +77,8 @@ fn crate_second_client() -> Result<ClientSocket, Exception> {
     ClientSocket::new("3333", "127.0.0.1:2222")
 }
 
-
 #[test]
 fn server_works() -> Result<(), Exception> {
-    let mut b = Box::new(1);
-    *b = 2;
-    let vec = [1u8; 2000000];
-    assert!(false, "{:?}", *b);
     Ok(())
 }
 
@@ -172,9 +162,9 @@ struct Calculator<T> {
     pub result: Option<T>,
 }
 
-impl<'a, 'b: 'a, T: 'b + Add<Output=T> + Mul<Output=T> + Borrow<T>> Calculator<T>
-    where
-        &'a T: Add<Output=T> + Mul<Output=T>,
+impl<'a, 'b: 'a, T: 'b + Add<Output = T> + Mul<Output = T> + Borrow<T>> Calculator<T>
+where
+    &'a T: Add<Output = T> + Mul<Output = T>,
 {
     pub fn calculate_procedurally(&'b mut self) {
         let res: T = match self.op {
@@ -185,7 +175,7 @@ impl<'a, 'b: 'a, T: 'b + Add<Output=T> + Mul<Output=T> + Borrow<T>> Calculator<T
     }
 }
 
-impl<T: Add<Output=T> + Mul<Output=T> + Clone> Calculator<T> {
+impl<T: Add<Output = T> + Mul<Output = T> + Clone> Calculator<T> {
     pub fn calculate_functionally(mut self) -> Self {
         self.result = Some(match self.op {
             Operation::Add => self.lhs.clone() + self.rhs.clone(),

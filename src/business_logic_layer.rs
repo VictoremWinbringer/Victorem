@@ -1,5 +1,5 @@
-use crate::entities::{CommandPacket, Exception, StatePacket};
 use crate::data_access_layer::Cache;
+use crate::entities::{CommandPacket, Exception, StatePacket};
 use std::collections::HashMap;
 use std::thread;
 use std::time::{Duration, Instant};
@@ -228,7 +228,7 @@ pub struct WaitTimer {
 impl WaitTimer {
     pub fn new(millis: u64) -> WaitTimer {
         WaitTimer {
-            time: Duration::from_millis(30),
+            time: Duration::from_millis(millis),
             instant: Instant::now(),
         }
     }
@@ -318,7 +318,10 @@ impl Server {
             version: VersionChecker,
             protocol: ProtocolChecker,
             id: Generator { id: 1 },
-            arranger: Arranger { filter: Filter { id: 1 }, packets: HashMap::new() },
+            arranger: Arranger {
+                filter: Filter { id: 1 },
+                packets: HashMap::new(),
+            },
         }
     }
 
@@ -338,8 +341,6 @@ impl Server {
         self.arranger.add(command)?;
         let vec = self.arranger.get_valid();
         self.arranger.set_last_valid(&vec);
-        Ok(vec.into_iter()
-            .map(|v| v.command)
-            .collect())
+        Ok(vec.into_iter().map(|v| v.command).collect())
     }
 }

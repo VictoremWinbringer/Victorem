@@ -2,14 +2,15 @@ mod business_logic_layer;
 mod data_access_layer;
 mod entities;
 
-use std::collections::HashMap;
-use std::net::SocketAddr;
-use std::time::{Duration, Instant};
-pub use crate::entities::Exception;
-use crate::data_access_layer::{TypedClientSocket, TypedServerSocket};
 use crate::business_logic_layer as bll;
 pub use crate::data_access_layer::MAX_DATAGRAM_SIZE;
+use crate::data_access_layer::{TypedClientSocket, TypedServerSocket};
+pub use crate::entities::Exception;
+use std::collections::HashMap;
+use std::net::SocketAddr;
+use std::time::Duration;
 
+//TODO: Add client with packet id
 #[derive(Debug)]
 ///Events from server
 pub enum ServerEvent {
@@ -29,7 +30,12 @@ pub trait Game {
     /// from: Address of command sender
     /// returns tuple with bool value indicating
     /// should server continue running if false stops server
-    fn update(&mut self, delta_time: Duration, commands: Vec<Vec<u8>>, from: SocketAddr) -> ContinueRunning;
+    fn update(
+        &mut self,
+        delta_time: Duration,
+        commands: Vec<Vec<u8>>,
+        from: SocketAddr,
+    ) -> ContinueRunning;
     ///gets new state to send to client
     /// delta_time: time elapsed throw last call
     /// returns bytes with new game state for client
@@ -44,8 +50,8 @@ pub trait Game {
     ///Handles events from server
     /// returns bool value
     /// if returns false stops server
-  /// usually don't implement this method. Use default implementation
-    fn handle_server_event(&mut self, event: ServerEvent) -> ContinueRunning {
+    /// usually don't implement this method. Use default implementation
+    fn handle_server_event(&mut self, _event: ServerEvent) -> ContinueRunning {
         true
     }
     ///Client to add to recv state from serve
@@ -76,8 +82,8 @@ impl ClientSocket {
         })
     }
     ///Send data to server
-   /// Don't block current thread
-   /// may wait up to 30 milliseconds if you send commands too often
+    /// Don't block current thread
+    /// may wait up to 30 milliseconds if you send commands too often
     pub fn send(&mut self, command: Vec<u8>) -> Result<usize, Exception> {
         let command = self.client.send(command);
         self.socket.write(&command)
@@ -103,7 +109,10 @@ struct ServerSocket {
 
 impl ServerSocket {
     pub fn new(port: &str) -> Result<ServerSocket, Exception> {
-        Ok(ServerSocket { socket: TypedServerSocket::new(port)?, servers: HashMap::new() })
+        Ok(ServerSocket {
+            socket: TypedServerSocket::new(port)?,
+            servers: HashMap::new(),
+        })
     }
 
     pub fn recv(&mut self) -> Result<(Vec<Vec<u8>>, SocketAddr), Exception> {
@@ -117,10 +126,6 @@ impl ServerSocket {
         self.servers.remove(&client);
     }
 
-    pub fn contains(&self, client: &SocketAddr) -> bool {
-        self.servers.contains_key(client)
-    }
-
     pub fn add(&mut self, client: &SocketAddr) {
         if !self.servers.contains_key(client) {
             self.servers.insert(client.clone(), bll::Server::new());
@@ -130,7 +135,8 @@ impl ServerSocket {
     pub fn send_to_all(&mut self, state: Vec<u8>) -> Vec<(SocketAddr, Exception)> {
         let mut exceptions = Vec::new();
         for (a, s) in &mut self.servers {
-            self.socket.write(a, &s.send(state.clone()))
+            self.socket
+                .write(a, &s.send(state.clone()))
                 .map_err(|e| exceptions.push((a.clone(), e)));
         }
         exceptions
@@ -167,7 +173,7 @@ impl<T: Game> GameServer<T> {
         while self.is_running {
             self.update();
             self.draw()
-        };
+        }
     }
 
     fn draw(&mut self) {
@@ -175,33 +181,35 @@ impl<T: Game> GameServer<T> {
             let state = self.game.draw(self.draw_elapsed.elapsed());
             self.game.add_client().map(|a| self.socket.add(&a));
             self.game.remove_client().map(|a| self.socket.remove(&a));
-            self.is_running = self.socket.send_to_all(state)
+            self.is_running = self
+                .socket
+                .send_to_all(state)
                 .into_iter()
-                .map(|ex|
-                    self.game.handle_server_event(ServerEvent::ExceptionOnSend(ex))
-                )
+                .map(|ex| {
+                    self.game
+                        .handle_server_event(ServerEvent::ExceptionOnSend(ex))
+                })
                 .all(|b| b);
         }
     }
 
-
     fn update(&mut self) {
-        self.socket.recv()
+        self.socket
+            .recv()
             .map(|(commands, from)| {
                 if self.game.allow_connect(&from) {
-                    self.is_running = self.game
-                        .update(self.update.elapsed(), commands, from);
+                    self.is_running = self.game.update(self.update.elapsed(), commands, from);
                 } else {
                     self.socket.remove(&from);
                 }
             })
-            .map_err(|e|
-                self.is_running = self.game
+            .map_err(|e| {
+                self.is_running = self
+                    .game
                     .handle_server_event(ServerEvent::ExceptionOnRecv(e))
-            );
+            });
     }
 }
-
 
 //trait Game {
 //    fn update(&mut self, delta_time: std::time::Duration, commands: Vec<Vec<u8>>, from_address: &str) -> Vec<u8>;

@@ -102,14 +102,15 @@ impl ServerSocket {
     }
 }
 
-const TIME: Duration = Duration::from_millis(30);
+const DRAW_PERIOD_IN_MILLIS: u64 = 30;
 
 pub struct GameServer<T: Game> {
     game: T,
     socket: ServerSocket,
     is_running: bool,
-    draw: Instant,
-    update: Instant,
+    draw: bll::WaitTimer,
+    update: bll::ElapsedTimer,
+    draw_elapsed: bll::ElapsedTimer,
 }
 
 impl<T: Game> GameServer<T> {
@@ -118,8 +119,9 @@ impl<T: Game> GameServer<T> {
             game,
             socket: ServerSocket::new(port)?,
             is_running: true,
-            draw: Instant::now(),
-            update: Instant::now(),
+            draw: bll::WaitTimer::new(DRAW_PERIOD_IN_MILLIS),
+            update: bll::ElapsedTimer::new(),
+            draw_elapsed: bll::ElapsedTimer::new(),
         })
     }
 
@@ -131,14 +133,13 @@ impl<T: Game> GameServer<T> {
     }
 
     fn draw(&mut self) {
-        if self.draw.elapsed() > TIME {
-            let elapsed = self.draw.elapsed();
-            self.draw = Instant::now();
-            let state = self.game.draw(elapsed);
+        if self.draw.to_continue() {
+            let state = self.game.draw(self.draw_elapsed.elapsed());
             self.game.add_client().map(|a| self.socket.add(&a));
             self.is_running = self.socket.send_to_all(state)
                 .into_iter()
-                .map(|ex| self.game.handle_server_event(ServerEvent::ExceptionOnSend(ex)))
+                .map(|ex|
+                    self.game.handle_server_event(ServerEvent::ExceptionOnSend(ex)))
                 .all(|b| b);
         }
     }
@@ -148,10 +149,8 @@ impl<T: Game> GameServer<T> {
         self.socket.recv()
             .map(|(commands, from)| {
                 if self.game.allow_connect(&from) {
-                    let elapsed = self.update.elapsed();
-                    self.update = Instant::now();
                     let (continue_running, disconnect_this_client) = self.game
-                        .update(elapsed, commands, from);
+                        .update(self.update.elapsed(), commands, from);
                     if disconnect_this_client {
                         self.socket.remove(&from);
                     }

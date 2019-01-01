@@ -198,13 +198,13 @@ impl<T: IWithId> Arranger<T> {
     }
 }
 
-struct Timer {
+struct SleepTimer {
     time: Duration,
     instant: Instant,
 }
 
-impl Timer {
-    fn wait(&mut self) {
+impl SleepTimer {
+    fn sleep(&mut self) {
         let elapsed = self.instant.elapsed();
         self.time
             .checked_sub(elapsed)
@@ -220,13 +220,55 @@ impl Timer {
     }
 }
 
+pub struct WaitTimer {
+    time: Duration,
+    instant: Instant,
+}
+
+impl WaitTimer {
+    pub fn new(millis: u64) -> WaitTimer {
+        WaitTimer {
+            time: Duration::from_millis(30),
+            instant: Instant::now(),
+        }
+    }
+    pub fn to_continue(&mut self) -> bool {
+        if self.instant.elapsed() > self.time {
+            self.instant = Instant::now();
+            true
+        } else {
+            false
+        }
+    }
+}
+
+pub struct ElapsedTimer {
+    time: Duration,
+    instant: Instant,
+}
+
+impl ElapsedTimer {
+    pub fn new() -> ElapsedTimer {
+        ElapsedTimer {
+            time: Duration::new(0, 0),
+            instant: Instant::now(),
+        }
+    }
+    pub fn elapsed(&mut self) -> Duration {
+        let elapsed = self.instant.elapsed();
+        let res = elapsed - self.time;
+        self.time = elapsed;
+        res
+    }
+}
+
 pub struct Client {
     version: VersionChecker,
     protocol: ProtocolChecker,
     id: Generator,
     cache: Cache,
     filter: Filter,
-    timer: Timer,
+    timer: SleepTimer,
 }
 
 impl Client {
@@ -237,7 +279,7 @@ impl Client {
             id: Generator { id: 1 },
             cache: Cache::new(),
             filter: Filter { id: 1 },
-            timer: Timer {
+            timer: SleepTimer {
                 time: Duration::from_millis(30),
                 instant: Instant::now(),
             },
@@ -249,7 +291,7 @@ impl Client {
         self.version.set(cr);
         self.protocol.set(cr);
         self.id.set(cr);
-        self.timer.wait();
+        self.timer.sleep();
         self.cache.add(command.clone());
         command
     }

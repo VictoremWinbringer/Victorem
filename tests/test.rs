@@ -82,25 +82,6 @@ fn server_works() -> Result<(), Exception> {
     Ok(())
 }
 
-#[test]
-fn it_works() {
-    let mut id = AddOne {
-        next: Some(Box::new(AddOne { next: None })),
-    };
-    let data1 = id.run(3);
-    let f = curry(1, add);
-    let f = compose(f, curry(1, add));
-    let data2 = f(3);
-    assert!(false, "{:?}, {:?}", data1, data2);
-}
-
-#[test]
-fn static_add() {
-    let mut f = add_static(3);
-    let data = format!("one {}, two {}, three {}", f(1), f(1), f(1));
-    let r: Vec<i32> = (1..=3).collect();
-    assert!(false, "{:#?} , {:#?}", r, data);
-}
 
 trait Middleware<T> {
     fn execute(&mut self, data: T) -> Result<T, Box<Error>>;
@@ -162,9 +143,9 @@ struct Calculator<T> {
     pub result: Option<T>,
 }
 
-impl<'a, 'b: 'a, T: 'b + Add<Output = T> + Mul<Output = T> + Borrow<T>> Calculator<T>
-where
-    &'a T: Add<Output = T> + Mul<Output = T>,
+impl<'a, 'b: 'a, T: 'b + Add<Output=T> + Mul<Output=T> + Borrow<T>> Calculator<T>
+    where
+        &'a T: Add<Output=T> + Mul<Output=T>,
 {
     pub fn calculate_procedurally(&'b mut self) {
         let res: T = match self.op {
@@ -175,7 +156,7 @@ where
     }
 }
 
-impl<T: Add<Output = T> + Mul<Output = T> + Clone> Calculator<T> {
+impl<T: Add<Output=T> + Mul<Output=T> + Clone> Calculator<T> {
     pub fn calculate_functionally(mut self) -> Self {
         self.result = Some(match self.op {
             Operation::Add => self.lhs.clone() + self.rhs.clone(),

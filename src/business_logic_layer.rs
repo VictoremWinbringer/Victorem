@@ -158,8 +158,31 @@ struct Arranger<T: IWithId> {
     packets: HashMap<u32, T>,
 }
 
+const MAX_SAVED: usize = 2000;
+
 impl<T: IWithId> Arranger<T> {
+    fn clear_if_overflows(&mut self) {
+        use itertools::*;
+
+        if self.packets.len() > MAX_SAVED {
+            self.packets = self.packets.
+                drain()
+                .sorted_by(|a, b| Ord::cmp(&a.0, &b.0))
+                .skip(MAX_SAVED / 2)
+                .collect();
+            let max_id = self.packets.iter().max_by(|x, y| x.0.cmp(y.0))
+                .map(|x| x.0.clone());
+            max_id.map(|x| {
+                let id = if x > 0 {
+                    x - 1
+                } else { 0 };
+                self.filter.set(id)
+            });
+        }
+    }
+
     pub fn add(&mut self, data: T) -> Result<(), Exception> {
+        self.clear_if_overflows();
         self.filter.is_valid_last_recv_id(&data)?;
         self.packets.entry(data.get()).or_insert(data);
         Ok(())
@@ -278,7 +301,7 @@ impl Client {
             protocol: ProtocolChecker,
             id: Generator { id: 1 },
             cache: Cache::new(),
-            filter: Filter { id: 1 },
+            filter: Filter { id: 0 },
             timer: SleepTimer {
                 time: Duration::from_millis(30),
                 instant: Instant::now(),
@@ -319,7 +342,7 @@ impl Server {
             protocol: ProtocolChecker,
             id: Generator { id: 1 },
             arranger: Arranger {
-                filter: Filter { id: 1 },
+                filter: Filter { id: 0 },
                 packets: HashMap::new(),
             },
         }

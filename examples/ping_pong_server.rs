@@ -15,8 +15,9 @@ impl victorem::Game for ChatGame {
         for v in commands {
             if v.len() > 0 {
                 println!(
-                    "From Client: {}",
-                    String::from_utf8(v).unwrap_or(String::new())
+                    "From Client: {} {}",
+                    from,
+                    String::from_utf8(v).unwrap_or(String::new()),
                 );
             }
         }

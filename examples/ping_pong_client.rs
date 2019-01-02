@@ -5,7 +5,7 @@ use rand::Rng;
 
 fn main() {
     let mut rng = rand::thread_rng();
-    let p: u16 = rng.gen_range(1111, 60000);
+    let p: u16 = 1111;// rng.gen_range(1111, 60000);
     let mut client = victorem::ClientSocket::new(&format!("{}", p), "127.0.0.1:2222").unwrap();
     loop {
         let _ = client

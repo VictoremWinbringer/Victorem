@@ -145,7 +145,7 @@ pub struct Cache {
 }
 
 impl Cache {
-    const MAX_SAVED: usize = 200;
+    const MAX_SAVED: usize = 2000;
     pub fn new() -> Cache {
         Cache { data: Vec::new() }
     }

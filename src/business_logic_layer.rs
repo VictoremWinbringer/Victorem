@@ -134,7 +134,10 @@ impl Filter {
     pub fn is_valid_last_recv_id(&self, data: &impl IWithId) -> Result<(), Exception> {
         if data.get() > self.id {
             Ok(())
-        } else {
+        } else if self.id != data.get() && self.id - data.get() > 100 {
+            Ok(())
+        }
+        {
             Err(Exception::NotValidIdError)
         }
     }
@@ -145,16 +148,10 @@ impl Filter {
     pub fn get(&self) -> u32 {
         self.id
     }
-
-    pub fn filter_and_set_last_recv_id(&mut self, data: &impl IWithId) -> Result<(), Exception> {
-        self.is_valid_last_recv_id(data)?;
-        self.set(data.get());
-        Ok(())
-    }
 }
 
 struct Arranger<T: IWithId> {
-    filter: Filter,
+    last_id: u32,
     packets: HashMap<u32, T>,
 }
 
@@ -165,27 +162,25 @@ impl<T: IWithId> Arranger<T> {
         use itertools::*;
 
         if self.packets.len() > MAX_SAVED {
+            let min_id = self
+                .packets
+                .iter()
+                .min_by(|x, y| x.0.cmp(y.0))
+                .map(|x| *x.0);
+            min_id.map(|x| {
+                self.last_id = if x > 0 { x - 1 } else { 0 };
+            });
             self.packets = self
                 .packets
                 .drain()
                 .sorted_by(|a, b| Ord::cmp(&a.0, &b.0))
                 .skip(MAX_SAVED / 2)
                 .collect();
-            let max_id = self
-                .packets
-                .iter()
-                .max_by(|x, y| x.0.cmp(y.0))
-                .map(|x| *x.0);
-            max_id.map(|x| {
-                let id = if x > 0 { x - 1 } else { 0 };
-                self.filter.set(id)
-            });
         }
     }
 
     pub fn add(&mut self, data: T) -> Result<(), Exception> {
         self.clear_if_overflows();
-        self.filter.is_valid_last_recv_id(&data)?;
         self.packets.entry(data.get()).or_insert(data);
         Ok(())
     }
@@ -195,14 +190,14 @@ impl<T: IWithId> Arranger<T> {
             .iter()
             .map(|p| p.get())
             .max()
-            .map(|max| self.filter.set(max));
+            .map(|max| self.last_id = max);
     }
 
     fn get_lost(&self) -> Vec<u32> {
         self.packets
             .keys()
             .max()
-            .map(|max| (self.filter.get() + 1, *max))
+            .map(|max| (self.last_id + 1, *max))
             .map(|(min, max)| min..=max)
             .map(|range| range.filter(|i| !self.packets.contains_key(i)))
             .map(|filter| {
@@ -213,7 +208,7 @@ impl<T: IWithId> Arranger<T> {
     }
 
     fn get_valid(&mut self) -> Vec<T> {
-        let mut i = self.filter.get() + 1;
+        let mut i = self.last_id + 1;
         let mut vec: Vec<T> = Vec::new();
         while self.packets.contains_key(&i) {
             vec.push(self.packets.remove(&i).unwrap());
@@ -316,15 +311,16 @@ impl Client {
         self.version.set(cr);
         self.protocol.set(cr);
         self.id.set(cr);
-        self.timer.sleep();
         self.cache.add(command.clone());
+        self.timer.sleep();
         command
     }
 
     pub fn recv(&mut self, state: StatePacket) -> Result<(Vec<u8>, Vec<CommandPacket>), Exception> {
         self.version.check(&state)?;
         self.protocol.check(&state)?;
-        self.filter.filter_and_set_last_recv_id(&state)?;
+        self.filter.is_valid_last_recv_id(&state)?;
+        self.filter.set(state.id.clone());
         let vec = self.cache.get_range(&state.lost_ids);
         Ok((state.state, vec))
     }
@@ -344,7 +340,7 @@ impl Server {
             protocol: ProtocolChecker,
             id: Generator { id: 1 },
             arranger: Arranger {
-                filter: Filter { id: 0 },
+                last_id: 0,
                 packets: HashMap::new(),
             },
         }

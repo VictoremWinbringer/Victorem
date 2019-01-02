@@ -1,12 +1,7 @@
 extern crate victorem;
 
-use rand;
-use rand::Rng;
-
 fn main() {
-    let mut rng = rand::thread_rng();
-    let p: u16 = rng.gen_range(1111, 60000);
-    let mut client = victorem::ClientSocket::new(&format!("{}", p), "127.0.0.1:2222").unwrap();
+    let mut client = victorem::ClientSocket::new("1111", "127.0.0.1:2222").unwrap();
     loop {
         let _ = client
             .send(b"Ping!".to_vec())

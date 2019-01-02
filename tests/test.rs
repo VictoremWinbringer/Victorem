@@ -37,11 +37,17 @@ impl GameData {
 
 struct GameMock<'a> {
     data: &'a mut GameData,
+    counter: usize,
+    current: usize,
 }
 
 impl<'a> GameMock<'a> {
-    fn new(data: &'a mut GameData) -> GameMock {
-        GameMock { data }
+    fn new(data: &'a mut GameData, counter: usize) -> GameMock {
+        GameMock {
+            data,
+            counter,
+            current: 0,
+        }
     }
 }
 
@@ -53,6 +59,10 @@ impl<'a> Game for GameMock<'a> {
 
     fn draw(&mut self, delta_time: Duration) -> Vec<u8> {
         self.data.drawn.push(delta_time);
+        self.current += 1;
+        if self.current > self.counter {
+            panic!("Stop Server")
+        }
         self.data.draw.clone()
     }
 
@@ -65,23 +75,53 @@ impl<'a> Game for GameMock<'a> {
     }
 }
 
-fn crate_client() -> Result<ClientSocket, Exception> {
-    ClientSocket::new("1111", "127.0.0.1:2222")
-}
-
-fn create_server(game: GameMock) -> Result<GameServer<GameMock>, Exception> {
-    GameServer::new(game, "2222")
-}
-
-fn crate_second_client() -> Result<ClientSocket, Exception> {
-    ClientSocket::new("3333", "127.0.0.1:2222")
+fn create_server(game: GameMock, port: String) -> Result<GameServer<GameMock>, Exception> {
+    GameServer::new(game, &port)
 }
 
 #[test]
-fn server_works() -> Result<(), Exception> {
+fn server_should_stop_if_update_returns_false() -> Result<(), Exception> {
+    let mut game_data = GameData::new();
+    game_data.continue_running = false;
+    let game_mock = GameMock::new(&mut game_data, 1000);
+    let mut game_server = create_server(game_mock, "3333".into())?;
+
+    game_server.run();
     Ok(())
 }
 
+#[test]
+fn server_should_stop_if_handle_event_returns_false() -> Result<(), Exception> {
+    let mut game_data = GameData::new();
+    game_data.disconnect_on_event = false;
+    let game_mock = GameMock::new(&mut game_data, 1000);
+    let mut game_server = create_server(game_mock, "3334".into())?;
+    game_server.run();
+    Ok(())
+}
+
+#[test]
+fn server_should_recv_commands_from_client() -> Result<(), Exception> {
+    let t = std::thread::spawn(|| {
+        let res = ClientSocket::new("1111", "127.0.0.1:3335")
+            .map(|mut c| {
+                for i in 0..10 {
+                    c.send(vec![1u8, 3u8]);
+                }
+                1
+            })
+            .unwrap_or(0);
+        res
+    });
+
+    let mut game_data = GameData::new();
+    let game_mock = GameMock::new(&mut game_data, 1000);
+    let mut game_server = create_server(game_mock, "3335".into())?;
+    game_server.run();
+    assert!(t.join().unwrap_or(0) > 0);
+    assert!(game_data.updates.len() > 1);
+    Ok(())
+}
 
 trait Middleware<T> {
     fn execute(&mut self, data: T) -> Result<T, Box<Error>>;
@@ -143,9 +183,9 @@ struct Calculator<T> {
     pub result: Option<T>,
 }
 
-impl<'a, 'b: 'a, T: 'b + Add<Output=T> + Mul<Output=T> + Borrow<T>> Calculator<T>
-    where
-        &'a T: Add<Output=T> + Mul<Output=T>,
+impl<'a, 'b: 'a, T: 'b + Add<Output = T> + Mul<Output = T> + Borrow<T>> Calculator<T>
+where
+    &'a T: Add<Output = T> + Mul<Output = T>,
 {
     pub fn calculate_procedurally(&'b mut self) {
         let res: T = match self.op {
@@ -156,7 +196,7 @@ impl<'a, 'b: 'a, T: 'b + Add<Output=T> + Mul<Output=T> + Borrow<T>> Calculator<T
     }
 }
 
-impl<T: Add<Output=T> + Mul<Output=T> + Clone> Calculator<T> {
+impl<T: Add<Output = T> + Mul<Output = T> + Clone> Calculator<T> {
     pub fn calculate_functionally(mut self) -> Self {
         self.result = Some(match self.op {
             Operation::Add => self.lhs.clone() + self.rhs.clone(),

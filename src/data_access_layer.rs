@@ -54,13 +54,13 @@ impl ServerSocket {
 
 struct BufferedServerSocket {
     socket: ServerSocket,
-    buffer: Box<Vec<u8>>,
+    buffer: Vec<u8>,
 }
 
 impl BufferedServerSocket {
     fn new(port: &str) -> Result<BufferedServerSocket, Exception> {
         let socket = ServerSocket::new(port)?;
-        let buffer = Box::new(vec![0u8; MAX_DATAGRAM_SIZE]);
+        let buffer = vec![0u8; MAX_DATAGRAM_SIZE];
         Ok(BufferedServerSocket { socket, buffer })
     }
 
@@ -76,13 +76,13 @@ impl BufferedServerSocket {
 
 struct BufferedClientSocket {
     socket: ClientSocket,
-    buffer: Box<Vec<u8>>,
+    buffer: Vec<u8>,
 }
 
 impl BufferedClientSocket {
     fn new(port: &str, server_address: &str) -> Result<BufferedClientSocket, Exception> {
         let socket = ClientSocket::new(port, server_address)?;
-        let buffer = Box::new(vec![0u8; MAX_DATAGRAM_SIZE]);
+        let buffer = vec![0u8; MAX_DATAGRAM_SIZE];
         Ok(BufferedClientSocket { socket, buffer })
     }
 
@@ -161,17 +161,17 @@ impl Cache {
         self.data.push(command);
     }
 
-    pub fn get(&mut self, id: &u32) -> Option<CommandPacket> {
+    pub fn get(&mut self, id: u32) -> Option<CommandPacket> {
         self.data
             .iter()
-            .position(|c| c.id == *id)
+            .position(|c| c.id == id)
             .map(|i| self.data[i].clone())
     }
 
-    pub fn get_range(&mut self, ids: &Vec<u32>) -> Vec<CommandPacket> {
+    pub fn get_range(&mut self, ids: &[u32]) -> Vec<CommandPacket> {
         let mut vec = Vec::<CommandPacket>::new();
         for id in ids {
-            self.get(id).map(|p| vec.push(p));
+            self.get(*id).map(|p| vec.push(p));
         }
         vec
     }

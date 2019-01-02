@@ -165,17 +165,19 @@ impl<T: IWithId> Arranger<T> {
         use itertools::*;
 
         if self.packets.len() > MAX_SAVED {
-            self.packets = self.packets.
-                drain()
+            self.packets = self
+                .packets
+                .drain()
                 .sorted_by(|a, b| Ord::cmp(&a.0, &b.0))
                 .skip(MAX_SAVED / 2)
                 .collect();
-            let max_id = self.packets.iter().max_by(|x, y| x.0.cmp(y.0))
-                .map(|x| x.0.clone());
+            let max_id = self
+                .packets
+                .iter()
+                .max_by(|x, y| x.0.cmp(y.0))
+                .map(|x| *x.0);
             max_id.map(|x| {
-                let id = if x > 0 {
-                    x - 1
-                } else { 0 };
+                let id = if x > 0 { x - 1 } else { 0 };
                 self.filter.set(id)
             });
         }
@@ -188,7 +190,7 @@ impl<T: IWithId> Arranger<T> {
         Ok(())
     }
 
-    fn set_last_valid(&mut self, packets: &Vec<T>) {
+    fn set_last_valid(&mut self, packets: &[T]) {
         packets
             .iter()
             .map(|p| p.get())
@@ -200,7 +202,7 @@ impl<T: IWithId> Arranger<T> {
         self.packets
             .keys()
             .max()
-            .map(|max| (self.filter.get() + 1, max.clone()))
+            .map(|max| (self.filter.get() + 1, *max))
             .map(|(min, max)| min..=max)
             .map(|range| range.filter(|i| !self.packets.contains_key(i)))
             .map(|filter| {
@@ -238,7 +240,7 @@ impl SleepTimer {
                     Some(d)
                 }
             })
-            .map(|d| thread::sleep(d));
+            .map(thread::sleep);
         self.instant = Instant::now();
     }
 }
@@ -255,7 +257,7 @@ impl WaitTimer {
             instant: Instant::now(),
         }
     }
-    pub fn to_continue(&mut self) -> bool {
+    pub fn continue_execution(&mut self) -> bool {
         if self.instant.elapsed() > self.time {
             self.instant = Instant::now();
             true

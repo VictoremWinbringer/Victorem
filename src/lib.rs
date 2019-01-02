@@ -10,7 +10,6 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::time::Duration;
 
-
 //TODO: Add client with packet id
 #[derive(Debug)]
 ///Events from server
@@ -138,7 +137,7 @@ impl ServerSocket {
         for (a, s) in &mut self.servers {
             self.socket
                 .write(a, &s.send(state.clone()))
-                .map_err(|e| exceptions.push((a.clone(), e)));
+                .map_err(|e| exceptions.push((*a, e)));
         }
         exceptions
     }
@@ -178,7 +177,7 @@ impl<T: Game> GameServer<T> {
     }
 
     fn draw(&mut self) {
-        if self.draw.to_continue() {
+        if self.draw.continue_execution() {
             let state = self.game.draw(self.draw_elapsed.elapsed());
             self.game.add_client().map(|a| self.socket.add(&a));
             self.game.remove_client().map(|a| self.socket.remove(&a));

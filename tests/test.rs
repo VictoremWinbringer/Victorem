@@ -52,7 +52,12 @@ impl<'a> GameMock<'a> {
 }
 
 impl<'a> Game for GameMock<'a> {
-    fn handle_command(&mut self, delta_time: Duration, commands: Vec<Vec<u8>>, from: SocketAddr) -> bool {
+    fn handle_command(
+        &mut self,
+        delta_time: Duration,
+        commands: Vec<Vec<u8>>,
+        from: SocketAddr,
+    ) -> bool {
         self.data.updates.push((delta_time, commands, from));
         self.data.continue_on_command
     }
@@ -105,10 +110,10 @@ fn server_should_send_state_to_client_on_draw() -> Result<(), Exception> {
 
 #[test]
 fn server_should_stop_if_handle_command_returns_false() -> Result<(), Exception> {
-    let t = std::thread::spawn(|| {
+    std::thread::spawn(|| {
         let res = ClientSocket::new("1112", "127.0.0.1:3333")
             .map(|mut c| {
-                for i in 0..1000 {
+                for _i in 0..1000 {
                     c.send(vec![1u8, 3u8]);
                 }
                 1
@@ -144,10 +149,10 @@ fn server_should_stop_if_handle_event_returns_false() -> Result<(), Exception> {
 
 #[test]
 fn server_should_recv_commands_from_client() -> Result<(), Exception> {
-    let t = std::thread::spawn(|| {
+    std::thread::spawn(|| {
         let res = ClientSocket::new("1111", "127.0.0.1:3335")
             .map(|mut c| {
-                for i in 0..1000 {
+                for _i in 0..1000 {
                     c.send(vec![1u8, 3u8]);
                 }
                 1
@@ -161,9 +166,14 @@ fn server_should_recv_commands_from_client() -> Result<(), Exception> {
     let mut game_server = create_server(game_mock, "3335".into())?;
     game_server.run();
     //  assert!(t.join().unwrap_or(0) > 0);
-    assert!(game_data.updates.iter().any(|(x, y, z)|
-        y.iter().any(|v| *v == vec![1u8, 3u8])
-    ), "len {}", game_data.updates.len());
+    assert!(
+        game_data
+            .updates
+            .iter()
+            .any(|(_, y, _)| y.iter().any(|v| *v == vec![1u8, 3u8])),
+        "len {}",
+        game_data.updates.len()
+    );
     Ok(())
 }
 
@@ -227,9 +237,9 @@ struct Calculator<T> {
     pub result: Option<T>,
 }
 
-impl<'a, 'b: 'a, T: 'b + Add<Output=T> + Mul<Output=T> + Borrow<T>> Calculator<T>
-    where
-        &'a T: Add<Output=T> + Mul<Output=T>,
+impl<'a, 'b: 'a, T: 'b + Add<Output = T> + Mul<Output = T> + Borrow<T>> Calculator<T>
+where
+    &'a T: Add<Output = T> + Mul<Output = T>,
 {
     pub fn calculate_procedurally(&'b mut self) {
         let res: T = match self.op {
@@ -240,7 +250,7 @@ impl<'a, 'b: 'a, T: 'b + Add<Output=T> + Mul<Output=T> + Borrow<T>> Calculator<T
     }
 }
 
-impl<T: Add<Output=T> + Mul<Output=T> + Clone> Calculator<T> {
+impl<T: Add<Output = T> + Mul<Output = T> + Clone> Calculator<T> {
     pub fn calculate_functionally(mut self) -> Self {
         self.result = Some(match self.op {
             Operation::Add => self.lhs.clone() + self.rhs.clone(),

@@ -8,7 +8,7 @@ struct PingPongGame {}
 impl victorem::Game for PingPongGame {
     fn handle_command(
         &mut self,
-        delta_time: Duration,
+        _delta_time: Duration,
         commands: Vec<Vec<u8>>,
         from: SocketAddr,
     ) -> victorem::ContinueRunning {
@@ -24,7 +24,7 @@ impl victorem::Game for PingPongGame {
         true
     }
 
-    fn draw(&mut self, delta_time: Duration) -> Vec<u8> {
+    fn draw(&mut self, _delta_time: Duration) -> Vec<u8> {
         b"Pong".to_vec()
     }
 }

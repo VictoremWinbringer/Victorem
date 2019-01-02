@@ -132,20 +132,16 @@ pub struct Filter {
 
 impl Filter {
     pub fn is_valid_last_recv_id(&self, data: &impl IWithId) -> Result<(), Exception> {
-        if data.get() > self.id {
-            return Ok(());
-        } else if self.id != data.get() && self.id - data.get() > 100 {
-            return Ok(());
+        if data.get() > self.id
+            || (self.id != data.get() && self.id - data.get() > 100) {
+            Ok(())
         } else {
-            return Err(Exception::NotValidIdError);
+            Err(Exception::NotValidIdError)
         }
     }
+
     pub fn set(&mut self, id: u32) {
         self.id = id
-    }
-
-    pub fn get(&self) -> u32 {
-        self.id
     }
 }
 
@@ -156,7 +152,7 @@ struct Arranger<T: IWithId> {
 }
 
 const MAX_SAVED: usize = 200;
-const MAX_RECEIVED: usize = 2000;
+const MAX_RECEIVED: usize = 200;
 
 impl<T: IWithId> Arranger<T> {
     fn clear_if_overflows(&mut self) {
@@ -179,7 +175,9 @@ impl<T: IWithId> Arranger<T> {
                 .collect();
         }
         if self.received.len() > MAX_RECEIVED {
-            self.received = self.received.clone()
+            self.received = self
+                .received
+                .clone()
                 .into_iter()
                 .skip(MAX_RECEIVED / 2)
                 .collect();
@@ -187,13 +185,16 @@ impl<T: IWithId> Arranger<T> {
     }
 
     pub fn add(&mut self, data: T) -> Result<(), Exception> {
+        let id = data.get();
+        if id + 100 < self.last_id || self.last_id + 100 < id {
+            self.last_id = id;
+        }
         self.clear_if_overflows();
         if self.received.contains(&data.get()) {
             Err(Exception::NotValidIdError)
         } else {
             self.received.push(data.get());
-            self.packets.entry(data.get())
-                .or_insert(data);
+            self.packets.entry(data.get()).or_insert(data);
             Ok(())
         }
     }
@@ -217,7 +218,7 @@ impl<T: IWithId> Arranger<T> {
                 let ids: Vec<u32> = filter.collect();
                 ids
             })
-            .unwrap_or(Vec::new())
+            .unwrap_or_else(Vec::new)
     }
 
     fn get_valid(&mut self) -> Vec<T> {
@@ -333,7 +334,7 @@ impl Client {
         self.version.check(&state)?;
         self.protocol.check(&state)?;
         self.filter.is_valid_last_recv_id(&state)?;
-        self.filter.set(state.id.clone());
+        self.filter.set(state.id);
         let vec = self.cache.get_range(&state.lost_ids);
         Ok((state.state, vec))
     }

@@ -137,7 +137,7 @@ impl ServerSocket {
     pub fn send_to_all(&mut self, state: Vec<u8>) -> Vec<(SocketAddr, Exception)> {
         let mut exceptions = Vec::new();
         for (a, s) in &mut self.servers {
-            self.socket
+          let _=  self.socket
                 .write(a, &s.send(state.clone()))
                 .map_err(|e| exceptions.push((*a, e)));
         }
@@ -183,32 +183,37 @@ impl<T: Game> GameServer<T> {
             let state = self.game.draw(self.draw_elapsed.elapsed());
             self.game.add_client().map(|a| self.socket.add(&a));
             self.game.remove_client().map(|a| self.socket.remove(&a));
-            self.is_running = self.is_running && self
-                .socket
-                .send_to_all(state)
-                .into_iter()
-                .map(|ex| {
-                    self.game
-                        .handle_server_event(ServerEvent::ExceptionOnSend(ex))
-                })
-                .all(|b| b);
+            self.is_running = self.is_running
+                && self
+                    .socket
+                    .send_to_all(state)
+                    .into_iter()
+                    .map(|ex| {
+                        self.game
+                            .handle_server_event(ServerEvent::ExceptionOnSend(ex))
+                    })
+                    .all(|b| b);
         }
     }
 
     fn update(&mut self) {
-        self.socket
+      let _ =  self.socket
             .recv()
             .map(|(commands, from)| {
                 if self.game.allow_connect(&from) {
-                    self.is_running = self.is_running && self.game.handle_command(self.update.elapsed(), commands, from);
+                    self.is_running = self.is_running
+                        && self
+                            .game
+                            .handle_command(self.update.elapsed(), commands, from);
                 } else {
                     self.socket.remove(&from);
                 }
             })
             .map_err(|e| {
-                self.is_running = self.is_running && self
-                    .game
-                    .handle_server_event(ServerEvent::ExceptionOnRecv(e))
+                self.is_running = self.is_running
+                    && self
+                        .game
+                        .handle_server_event(ServerEvent::ExceptionOnRecv(e))
             });
     }
 }

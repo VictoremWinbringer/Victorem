@@ -6,7 +6,7 @@ description = "UPD Game Server Framework"
 license = "MIT"
 authors = ["https://github.com/VictoremWinbringer"]
 [dependencies]
-bincode = "*"
-serde_derive = "*"
-serde = "*"
-itertools = "*"
+bincode = "1.0.1"
+serde_derive = "1.0.82"
+serde = "1.0.82"
+itertools = "0.8.0"

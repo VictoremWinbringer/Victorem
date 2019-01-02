@@ -1,9 +1,10 @@
 [package]
 name = "victorem"
 version = "0.1.0"
-authors = ["VictoremWinbringer <victor@mail.ru>"]
 edition = "2018"
-
+description = "UPD Game Server Framework"
+license = "MIT license (LICENSE-MIT or http://opensource.org/licenses/MIT)"
+authors = ["https://github.com/VictoremWinbringer"]
 [dependencies]
 bincode = "*"
 serde_derive = "*"

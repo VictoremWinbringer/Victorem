@@ -133,12 +133,11 @@ pub struct Filter {
 impl Filter {
     pub fn is_valid_last_recv_id(&self, data: &impl IWithId) -> Result<(), Exception> {
         if data.get() > self.id {
-            Ok(())
+            return Ok(());
         } else if self.id != data.get() && self.id - data.get() > 100 {
-            Ok(())
-        }
-        {
-            Err(Exception::NotValidIdError)
+            return Ok(());
+        } else {
+            return Err(Exception::NotValidIdError);
         }
     }
     pub fn set(&mut self, id: u32) {

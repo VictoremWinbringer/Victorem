@@ -3,7 +3,7 @@ name = "victorem"
 version = "0.1.0"
 edition = "2018"
 description = "UPD Game Server Framework"
-license = "MIT license (LICENSE-MIT or http://opensource.org/licenses/MIT)"
+license = "MIT"
 authors = ["https://github.com/VictoremWinbringer"]
 [dependencies]
 bincode = "*"

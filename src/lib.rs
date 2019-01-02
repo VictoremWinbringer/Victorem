@@ -28,9 +28,10 @@ pub trait Game {
     /// delta_time: time elapsed from last call
     /// command: ordered commands commands from server
     /// from: Address of command sender
-    /// returns tuple with bool value indicating
+    /// returns bool value indicating
     /// should server continue running if false stops server
-    fn update(
+    /// called only when new commands come to server
+    fn handle_command(
         &mut self,
         delta_time: Duration,
         commands: Vec<Vec<u8>>,
@@ -40,6 +41,7 @@ pub trait Game {
     /// delta_time: time elapsed throw last call
     /// returns bytes with new game state for client
     /// called once in about 30 milliseconds
+    /// sends state only to clients connected to server
     fn draw(&mut self, delta_time: Duration) -> Vec<u8>;
     ///allow client with this IP Address work with server
     /// if false server don't send new state to this client
@@ -181,7 +183,7 @@ impl<T: Game> GameServer<T> {
             let state = self.game.draw(self.draw_elapsed.elapsed());
             self.game.add_client().map(|a| self.socket.add(&a));
             self.game.remove_client().map(|a| self.socket.remove(&a));
-            self.is_running = self
+            self.is_running = self.is_running && self
                 .socket
                 .send_to_all(state)
                 .into_iter()
@@ -198,13 +200,13 @@ impl<T: Game> GameServer<T> {
             .recv()
             .map(|(commands, from)| {
                 if self.game.allow_connect(&from) {
-                    self.is_running = self.game.update(self.update.elapsed(), commands, from);
+                    self.is_running = self.is_running && self.game.handle_command(self.update.elapsed(), commands, from);
                 } else {
                     self.socket.remove(&from);
                 }
             })
             .map_err(|e| {
-                self.is_running = self
+                self.is_running = self.is_running && self
                     .game
                     .handle_server_event(ServerEvent::ExceptionOnRecv(e))
             });

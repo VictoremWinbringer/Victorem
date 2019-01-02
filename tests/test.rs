@@ -9,12 +9,12 @@ use victorem::{ClientSocket, ContinueRunning, Exception, Game, GameServer, Serve
 struct GameData {
     events: Vec<ServerEvent>,
     updates: Vec<(Duration, Vec<Vec<u8>>, SocketAddr)>,
-    continue_running: bool,
+    continue_on_command: bool,
     disconnect_this_client: Option<SocketAddr>,
     draw: Vec<u8>,
     drawn: Vec<Duration>,
     new_client: Option<SocketAddr>,
-    disconnect_on_event: bool,
+    continue_on_event: bool,
 }
 
 impl GameData {
@@ -22,7 +22,7 @@ impl GameData {
         GameData {
             events: Vec::new(),
             updates: Vec::new(),
-            continue_running: true,
+            continue_on_command: true,
             disconnect_this_client: None,
             draw: Vec::new(),
             drawn: Vec::new(),
@@ -30,7 +30,7 @@ impl GameData {
                 std::net::IpAddr::V4(std::net::Ipv4Addr::new(127, 0, 0, 1)),
                 7777,
             )),
-            disconnect_on_event: false,
+            continue_on_event: true,
         }
     }
 }
@@ -52,23 +52,23 @@ impl<'a> GameMock<'a> {
 }
 
 impl<'a> Game for GameMock<'a> {
-    fn update(&mut self, delta_time: Duration, commands: Vec<Vec<u8>>, from: SocketAddr) -> bool {
+    fn handle_command(&mut self, delta_time: Duration, commands: Vec<Vec<u8>>, from: SocketAddr) -> bool {
         self.data.updates.push((delta_time, commands, from));
-        self.data.continue_running
+        self.data.continue_on_command
     }
 
     fn draw(&mut self, delta_time: Duration) -> Vec<u8> {
         self.data.drawn.push(delta_time);
         self.current += 1;
         if self.current > self.counter {
-            panic!("Stop Server")
+            self.data.continue_on_event = false;
         }
         self.data.draw.clone()
     }
 
     fn handle_server_event(&mut self, event: ServerEvent) -> ContinueRunning {
         self.data.events.push(event);
-        self.data.disconnect_on_event.clone()
+        self.data.continue_on_event.clone()
     }
     fn add_client(&mut self) -> Option<SocketAddr> {
         self.data.new_client.clone()
@@ -80,23 +80,65 @@ fn create_server(game: GameMock, port: String) -> Result<GameServer<GameMock>, E
 }
 
 #[test]
-fn server_should_stop_if_update_returns_false() -> Result<(), Exception> {
+fn server_should_send_state_to_client_on_draw() -> Result<(), Exception> {
+    std::thread::spawn(|| {
+        let mut game_data = GameData::new();
+        game_data.draw = vec![3u8, 7, 8];
+        let game_mock = GameMock::new(&mut game_data, 100000);
+        if let Ok(mut game_server) = create_server(game_mock, "3336".into()) {
+            game_server.run();
+        }
+    });
+    let mut client = ClientSocket::new("4444", "127.0.0.1:3336")?;
+    client.send(vec![1u8]);
+    client.send(vec![1u8]);
+    client.send(vec![1u8]);
+    let res = loop {
+        match client.recv() {
+            Ok(r) => break r,
+            Err(_) => continue,
+        }
+    };
+    assert_eq!(vec![3u8, 7, 8], res);
+    Ok(())
+}
+
+#[test]
+fn server_should_stop_if_handle_command_returns_false() -> Result<(), Exception> {
+    let t = std::thread::spawn(|| {
+        let res = ClientSocket::new("1112", "127.0.0.1:3333")
+            .map(|mut c| {
+                for i in 0..1000 {
+                    c.send(vec![1u8, 3u8]);
+                }
+                1
+            })
+            .unwrap_or(0);
+        res
+    });
+    let timer = std::time::Instant::now();
+    let start = timer.elapsed();
     let mut game_data = GameData::new();
-    game_data.continue_running = false;
+    game_data.continue_on_command = false;
     let game_mock = GameMock::new(&mut game_data, 1000);
     let mut game_server = create_server(game_mock, "3333".into())?;
-
     game_server.run();
+    let stop = timer.elapsed();
+    assert!(stop - start < std::time::Duration::from_millis(100));
     Ok(())
 }
 
 #[test]
 fn server_should_stop_if_handle_event_returns_false() -> Result<(), Exception> {
+    let timer = std::time::Instant::now();
+    let start = timer.elapsed();
     let mut game_data = GameData::new();
-    game_data.disconnect_on_event = false;
+    game_data.continue_on_event = false;
     let game_mock = GameMock::new(&mut game_data, 1000);
     let mut game_server = create_server(game_mock, "3334".into())?;
     game_server.run();
+    let stop = timer.elapsed();
+    assert!(stop - start < std::time::Duration::from_millis(100));
     Ok(())
 }
 
@@ -105,7 +147,7 @@ fn server_should_recv_commands_from_client() -> Result<(), Exception> {
     let t = std::thread::spawn(|| {
         let res = ClientSocket::new("1111", "127.0.0.1:3335")
             .map(|mut c| {
-                for i in 0..10 {
+                for i in 0..1000 {
                     c.send(vec![1u8, 3u8]);
                 }
                 1
@@ -115,11 +157,13 @@ fn server_should_recv_commands_from_client() -> Result<(), Exception> {
     });
 
     let mut game_data = GameData::new();
-    let game_mock = GameMock::new(&mut game_data, 1000);
+    let game_mock = GameMock::new(&mut game_data, 100);
     let mut game_server = create_server(game_mock, "3335".into())?;
     game_server.run();
-    assert!(t.join().unwrap_or(0) > 0);
-    assert!(game_data.updates.len() > 1);
+    //  assert!(t.join().unwrap_or(0) > 0);
+    assert!(game_data.updates.iter().any(|(x, y, z)|
+        y.iter().any(|v| *v == vec![1u8, 3u8])
+    ), "len {}", game_data.updates.len());
     Ok(())
 }
 
@@ -183,9 +227,9 @@ struct Calculator<T> {
     pub result: Option<T>,
 }
 
-impl<'a, 'b: 'a, T: 'b + Add<Output = T> + Mul<Output = T> + Borrow<T>> Calculator<T>
-where
-    &'a T: Add<Output = T> + Mul<Output = T>,
+impl<'a, 'b: 'a, T: 'b + Add<Output=T> + Mul<Output=T> + Borrow<T>> Calculator<T>
+    where
+        &'a T: Add<Output=T> + Mul<Output=T>,
 {
     pub fn calculate_procedurally(&'b mut self) {
         let res: T = match self.op {
@@ -196,7 +240,7 @@ where
     }
 }
 
-impl<T: Add<Output = T> + Mul<Output = T> + Clone> Calculator<T> {
+impl<T: Add<Output=T> + Mul<Output=T> + Clone> Calculator<T> {
     pub fn calculate_functionally(mut self) -> Self {
         self.result = Some(match self.op {
             Operation::Add => self.lhs.clone() + self.rhs.clone(),

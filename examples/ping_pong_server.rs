@@ -3,10 +3,10 @@ extern crate victorem;
 use std::net::SocketAddr;
 use std::time::Duration;
 
-struct ChatGame {}
+struct PingPongGame {}
 
-impl victorem::Game for ChatGame {
-    fn update(
+impl victorem::Game for PingPongGame {
+    fn handle_command(
         &mut self,
         delta_time: Duration,
         commands: Vec<Vec<u8>>,
@@ -30,6 +30,6 @@ impl victorem::Game for ChatGame {
 }
 
 fn main() {
-    let mut server = victorem::GameServer::new(ChatGame {}, "2222").unwrap();
+    let mut server = victorem::GameServer::new(PingPongGame {}, "2222").unwrap();
     server.run();
 }

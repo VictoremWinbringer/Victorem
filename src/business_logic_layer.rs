@@ -158,7 +158,7 @@ struct Arranger<T: IWithId> {
     packets: HashMap<u32, T>,
 }
 
-const MAX_SAVED: usize = 2000;
+const MAX_SAVED: usize = 200;
 
 impl<T: IWithId> Arranger<T> {
     fn clear_if_overflows(&mut self) {

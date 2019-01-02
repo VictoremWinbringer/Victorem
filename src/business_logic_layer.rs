@@ -152,9 +152,11 @@ impl Filter {
 struct Arranger<T: IWithId> {
     last_id: u32,
     packets: HashMap<u32, T>,
+    received: Vec<u32>,
 }
 
 const MAX_SAVED: usize = 200;
+const MAX_RECEIVED: usize = 2000;
 
 impl<T: IWithId> Arranger<T> {
     fn clear_if_overflows(&mut self) {
@@ -176,12 +178,24 @@ impl<T: IWithId> Arranger<T> {
                 .skip(MAX_SAVED / 2)
                 .collect();
         }
+        if self.received.len() > MAX_RECEIVED {
+            self.received = self.received.clone()
+                .into_iter()
+                .skip(MAX_RECEIVED / 2)
+                .collect();
+        }
     }
 
     pub fn add(&mut self, data: T) -> Result<(), Exception> {
         self.clear_if_overflows();
-        self.packets.entry(data.get()).or_insert(data);
-        Ok(())
+        if self.received.contains(&data.get()) {
+            Err(Exception::NotValidIdError)
+        } else {
+            self.received.push(data.get());
+            self.packets.entry(data.get())
+                .or_insert(data);
+            Ok(())
+        }
     }
 
     fn set_last_valid(&mut self, packets: &[T]) {
@@ -341,6 +355,7 @@ impl Server {
             arranger: Arranger {
                 last_id: 0,
                 packets: HashMap::new(),
+                received: Vec::new(),
             },
         }
     }

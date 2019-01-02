@@ -1,10 +1,16 @@
 [package]
 name = "victorem"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2018"
 description = "UPD Game Server Framework"
 license = "MIT"
 authors = ["https://github.com/VictoremWinbringer"]
+readme = "README.md"
+repository = "https://github.com/VictoremWinbringer/Victorem"
+homepage = "https://github.com/VictoremWinbringer/Victorem"
+documentation = "https://docs.rs/victorem"
+keywords = ["game", "udp", "server"]
+categories = ["game-engines", "network-programming"]
 [dependencies]
 bincode = "1.0.1"
 serde_derive = "1.0.82"

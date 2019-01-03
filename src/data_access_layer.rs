@@ -14,7 +14,7 @@ pub const MAX_DATAGRAM_SIZE: usize = 64_000;
 
 impl ClientSocket {
     fn new(port: &str, server_address: &str) -> Result<ClientSocket, Exception> {
-        let local_address = format!("127.0.0.1:{}", port.trim());
+        let local_address = format!("0.0.0.0:{}", port.trim());
         let remote_address = server_address.trim();
         let socket = UdpSocket::bind(&local_address)?;
         socket.connect(remote_address)?;
@@ -35,7 +35,7 @@ impl ClientSocket {
 
 impl ServerSocket {
     fn new(port: &str) -> Result<ServerSocket, Exception> {
-        let local_address = format!("127.0.0.1:{}", port.trim());
+        let local_address = format!("0.0.0.0:{}", port.trim());
         let socket = UdpSocket::bind(&local_address.trim())?;
         socket.set_nonblocking(true)?;
         Ok(ServerSocket { socket })

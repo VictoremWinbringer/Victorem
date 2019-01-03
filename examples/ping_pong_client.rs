@@ -11,8 +11,7 @@ fn main() {
         if timer.elapsed() > period {
             timer = Instant::now();
             id += 1;
-            let _ = client
-                .send(format!("Ping {}", id).into_bytes());
+            let _ = client.send(format!("Ping {}", id).into_bytes());
         }
         let _ = client
             .recv()

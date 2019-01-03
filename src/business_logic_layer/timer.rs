@@ -1,6 +1,5 @@
-use crate::entities::{CommandPacket, Exception, StatePacket};
-use std::time::{Duration, Instant};
 use std::thread;
+use std::time::{Duration, Instant};
 
 pub struct SleepTimer {
     time: Duration,

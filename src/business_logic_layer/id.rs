@@ -31,7 +31,9 @@ pub struct Generator {
 }
 
 impl Generator {
-    pub fn new(start: u32) -> Generator { Generator { id: start } }
+    pub fn new(start: u32) -> Generator {
+        Generator { id: start }
+    }
     pub fn generate(&mut self) -> u32 {
         let result = self.id;
         self.id += 1;
@@ -44,11 +46,12 @@ pub struct Filter {
 }
 
 impl Filter {
-    pub fn new(start: u32) -> Filter { Filter { id: start } }
+    pub fn new(start: u32) -> Filter {
+        Filter { id: start }
+    }
 
-    pub fn is_valid_last_recv_id(&mut self, data: &impl IWithId) -> Result<(), Exception> {
-        if data.get() > self.id
-            || self.id - data.get() > MAX_ID_BREAK {
+    pub fn filter(&mut self, data: &impl IWithId) -> Result<(), Exception> {
+        if data.get() > self.id || self.id - data.get() > MAX_ID_BREAK {
             self.id = data.get();
             Ok(())
         } else {
@@ -62,7 +65,6 @@ pub struct Arranger<T: IWithId> {
     packets: HashMap<u32, T>,
     received: Vec<u32>,
 }
-
 
 const MAX_ID_BREAK: u32 = 64;
 const MAX_SAVED: usize = (MAX_ID_BREAK * 2) as usize;

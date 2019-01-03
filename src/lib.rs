@@ -8,7 +8,7 @@ use crate::data_access_layer::{TypedClientSocket, TypedServerSocket};
 pub use crate::entities::Exception;
 use std::collections::HashMap;
 use std::net::SocketAddr;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::Duration;
 
 //TODO: Add Session ID for Client And Server!
 
@@ -131,19 +131,16 @@ impl ServerSocket {
     }
 
     pub fn add(&mut self, client: &SocketAddr) {
-        use std::net::*;
         if !self.servers.contains_key(client) {
-            self.servers.insert(
-                client.clone(),
-                bll::Server::new(),
-            );
+            self.servers.insert(client.clone(), bll::Server::new());
         }
     }
 
     pub fn send_to_all(&mut self, state: Vec<u8>) -> Vec<(SocketAddr, Exception)> {
         let mut exceptions = Vec::new();
         for (a, s) in &mut self.servers {
-            let _ = self.socket
+            let _ = self
+                .socket
                 .write(a, &s.send(state.clone()))
                 .map_err(|e| exceptions.push((*a, e)));
         }
@@ -189,8 +186,7 @@ impl<T: Game> GameServer<T> {
             let state = self.game.draw(self.draw_elapsed.elapsed());
             self.game.add_client().map(|a| self.socket.add(&a));
             self.game.remove_client().map(|a| self.socket.remove(&a));
-            self.is_running = self.is_running
-                & &self
+            self.is_running &= self
                 .socket
                 .send_to_all(state)
                 .into_iter()
@@ -203,21 +199,20 @@ impl<T: Game> GameServer<T> {
     }
 
     fn update(&mut self) {
-        let _ = self.socket
+        let _ = self
+            .socket
             .recv()
             .map(|(commands, from)| {
                 if self.game.allow_connect(&from) {
-                    self.is_running = self.is_running
-                        & &self
-                        .game
-                        .handle_command(self.update.elapsed(), commands, from);
+                    self.is_running &=
+                        self.game
+                            .handle_command(self.update.elapsed(), commands, from);
                 } else {
                     self.socket.remove(&from);
                 }
             })
             .map_err(|e| {
-                self.is_running = self.is_running
-                    & &self
+                self.is_running &= self
                     .game
                     .handle_server_event(ServerEvent::ExceptionOnRecv(e))
             });

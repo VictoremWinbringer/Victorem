@@ -2,7 +2,7 @@ use crate::entities::{CommandPacket, Exception, StatePacket};
 
 const PROTOCOL_VERSION: u8 = 1;
 
-trait IWithVersion {
+pub trait IWithVersion {
     fn get(&self) -> u8;
     fn set(&mut self, version: u8);
 }

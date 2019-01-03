@@ -1,7 +1,3 @@
-use std::collections::HashMap;
-use std::thread;
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH, SystemTimeError};
-
 mod version;
 
 mod protocol;
@@ -12,13 +8,13 @@ pub mod timer;
 
 mod key;
 
-use crate::data_access_layer::Cache;
-use crate::entities::{CommandPacket, Exception, StatePacket};
-use self::id::{Filter, Generator, Arranger};
-use self::version::VersionChecker;
+use self::id::{Arranger, Filter, Generator};
+use self::key as k;
 use self::protocol::ProtocolChecker;
 use self::timer::SleepTimer;
-use self::key as k;
+use self::version::VersionChecker;
+use crate::data_access_layer::Cache;
+use crate::entities::{CommandPacket, Exception, StatePacket};
 
 pub struct Client {
     protocol_version: VersionChecker,
@@ -48,8 +44,8 @@ impl Client {
 
     fn create_command(&mut self, command: Vec<u8>) -> CommandPacket {
         CommandPacket {
-            protocol_id:  self.protocol_id.get(),
-            protocol_version:self.protocol_version.get(),
+            protocol_id: self.protocol_id.get(),
+            protocol_version: self.protocol_version.get(),
             id: self.id.generate(),
             command,
             session_key: self.key_generator.generate(),
@@ -70,7 +66,7 @@ impl Client {
             self.key_filter = k::Filter::new(state.session_key);
             self.id_filter = Filter::new(0);
         }
-        self.id_filter.is_valid_last_recv_id(&state)?;
+        self.id_filter.filter(&state)?;
         let vec = self.cache.get_range(&state.lost_ids);
         Ok((state.state, vec))
     }
@@ -97,7 +93,6 @@ impl Server {
             key_generator: k::Generator::new(),
         }
     }
-
 
     pub fn send(&mut self, state: Vec<u8>) -> StatePacket {
         StatePacket {

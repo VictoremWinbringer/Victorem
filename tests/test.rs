@@ -78,6 +78,9 @@ impl<'a> Game for GameMock<'a> {
     fn add_client(&mut self) -> Option<SocketAddr> {
         self.data.new_client.clone()
     }
+    fn remove_client(&mut self) -> Option<SocketAddr> {
+        self.data.disconnect_this_client.clone()
+    }
 }
 
 fn create_server(game: GameMock, port: String) -> Result<GameServer<GameMock>, Exception> {
@@ -114,7 +117,7 @@ fn server_should_stop_if_handle_command_returns_false() -> Result<(), Exception>
         let res = ClientSocket::new("1112", "127.0.0.1:3333")
             .map(|mut c| {
                 for _i in 0..1000 {
-                    c.send(vec![1u8, 3u8]);
+                    let _ = c.send(vec![1u8, 3u8]);
                 }
                 1
             })
@@ -153,7 +156,7 @@ fn server_should_recv_commands_from_client() -> Result<(), Exception> {
         let res = ClientSocket::new("1111", "127.0.0.1:3335")
             .map(|mut c| {
                 for _i in 0..1000 {
-                    c.send(vec![1u8, 3u8]);
+                    let _ = c.send(vec![1u8, 3u8]);
                 }
                 1
             })
@@ -237,9 +240,9 @@ struct Calculator<T> {
     pub result: Option<T>,
 }
 
-impl<'a, 'b: 'a, T: 'b + Add<Output=T> + Mul<Output=T> + Borrow<T>> Calculator<T>
-    where
-        &'a T: Add<Output=T> + Mul<Output=T>,
+impl<'a, 'b: 'a, T: 'b + Add<Output = T> + Mul<Output = T> + Borrow<T>> Calculator<T>
+where
+    &'a T: Add<Output = T> + Mul<Output = T>,
 {
     pub fn calculate_procedurally(&'b mut self) {
         let res: T = match self.op {
@@ -250,7 +253,7 @@ impl<'a, 'b: 'a, T: 'b + Add<Output=T> + Mul<Output=T> + Borrow<T>> Calculator<T
     }
 }
 
-impl<T: Add<Output=T> + Mul<Output=T> + Clone> Calculator<T> {
+impl<T: Add<Output = T> + Mul<Output = T> + Clone> Calculator<T> {
     pub fn calculate_functionally(mut self) -> Self {
         self.result = Some(match self.op {
             Operation::Add => self.lhs.clone() + self.rhs.clone(),

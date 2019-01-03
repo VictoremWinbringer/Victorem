@@ -1,5 +1,5 @@
-use crate::entities::{CommandPacket, Exception, StatePacket};
-use std::time::{Duration, SystemTimeError, SystemTime, UNIX_EPOCH};
+use crate::entities::{CommandPacket, StatePacket};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 pub trait IWithKey {
     fn get(&self) -> Duration;
@@ -27,15 +27,14 @@ impl IWithKey for CommandPacket {
 }
 
 pub fn new_key() -> Duration {
-    match SystemTime::now()
-        .duration_since(UNIX_EPOCH) {
+    match SystemTime::now().duration_since(UNIX_EPOCH) {
         Ok(d) => d,
         Err(e) => e.duration(),
     }
 }
 
 pub struct Generator {
-    key: Duration
+    key: Duration,
 }
 
 impl Generator {
@@ -43,11 +42,13 @@ impl Generator {
         Generator { key: new_key() }
     }
 
-    pub fn generate(&self) -> Duration { self.key }
+    pub fn generate(&self) -> Duration {
+        self.key
+    }
 }
 
 pub struct Filter {
-    key: Duration
+    key: Duration,
 }
 
 impl Filter {

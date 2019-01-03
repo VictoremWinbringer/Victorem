@@ -3,7 +3,7 @@ use std::error::Error;
 use std::fmt::Display;
 use std::fmt::Formatter;
 use std::io;
-use std::time::{Duration, SystemTimeError};
+use std::time::Duration;
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct CommandPacket {

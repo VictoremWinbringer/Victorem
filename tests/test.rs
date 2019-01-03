@@ -237,9 +237,9 @@ struct Calculator<T> {
     pub result: Option<T>,
 }
 
-impl<'a, 'b: 'a, T: 'b + Add<Output = T> + Mul<Output = T> + Borrow<T>> Calculator<T>
-where
-    &'a T: Add<Output = T> + Mul<Output = T>,
+impl<'a, 'b: 'a, T: 'b + Add<Output=T> + Mul<Output=T> + Borrow<T>> Calculator<T>
+    where
+        &'a T: Add<Output=T> + Mul<Output=T>,
 {
     pub fn calculate_procedurally(&'b mut self) {
         let res: T = match self.op {
@@ -250,7 +250,7 @@ where
     }
 }
 
-impl<T: Add<Output = T> + Mul<Output = T> + Clone> Calculator<T> {
+impl<T: Add<Output=T> + Mul<Output=T> + Clone> Calculator<T> {
     pub fn calculate_functionally(mut self) -> Self {
         self.result = Some(match self.op {
             Operation::Add => self.lhs.clone() + self.rhs.clone(),

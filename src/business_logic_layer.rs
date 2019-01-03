@@ -133,7 +133,7 @@ pub struct Filter {
 impl Filter {
     pub fn is_valid_last_recv_id(&self, data: &impl IWithId) -> Result<(), Exception> {
         if data.get() > self.id
-            || (self.id != data.get() && self.id - data.get() > 100) {
+            || self.id - data.get() > MAX_ID_BREAK {
             Ok(())
         } else {
             Err(Exception::NotValidIdError)
@@ -151,10 +151,34 @@ struct Arranger<T: IWithId> {
     received: Vec<u32>,
 }
 
-const MAX_SAVED: usize = 200;
-const MAX_RECEIVED: usize = 200;
+
+const MAX_ID_BREAK: u32 = 64;
+const MAX_SAVED: usize = (MAX_ID_BREAK * 2) as usize;
+const MAX_RECEIVED: usize = MAX_SAVED;
 
 impl<T: IWithId> Arranger<T> {
+    pub fn arrange(&mut self) -> Vec<T> {
+        let vec = self.get_valid();
+        self.set_last_valid(&vec);
+        vec
+    }
+
+    pub fn add(&mut self, data: T) -> Result<(), Exception> {
+        let id = data.get();
+        if id + MAX_ID_BREAK < self.last_id || self.last_id + MAX_ID_BREAK < id {
+            self.last_id = id;
+            self.received = Vec::new()
+        }
+        self.clear_if_overflows();
+        if self.received.contains(&data.get()) {
+            Err(Exception::NotValidIdError)
+        } else {
+            self.received.push(data.get());
+            self.packets.entry(data.get()).or_insert(data);
+            Ok(())
+        }
+    }
+
     fn clear_if_overflows(&mut self) {
         use itertools::*;
 
@@ -181,21 +205,6 @@ impl<T: IWithId> Arranger<T> {
                 .into_iter()
                 .skip(MAX_RECEIVED / 2)
                 .collect();
-        }
-    }
-
-    pub fn add(&mut self, data: T) -> Result<(), Exception> {
-        let id = data.get();
-        if id + 100 < self.last_id || self.last_id + 100 < id {
-            self.last_id = id;
-        }
-        self.clear_if_overflows();
-        if self.received.contains(&data.get()) {
-            Err(Exception::NotValidIdError)
-        } else {
-            self.received.push(data.get());
-            self.packets.entry(data.get()).or_insert(data);
-            Ok(())
         }
     }
 
@@ -375,8 +384,7 @@ impl Server {
         self.version.check(&command)?;
         self.protocol.check(&command)?;
         self.arranger.add(command)?;
-        let vec = self.arranger.get_valid();
-        self.arranger.set_last_valid(&vec);
+        let vec = self.arranger.arrange();
         Ok(vec.into_iter().map(|v| v.command).collect())
     }
 }

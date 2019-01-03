@@ -14,18 +14,6 @@ pub struct CommandPacket {
     pub session_key: Duration,
 }
 
-impl CommandPacket {
-    pub fn new(command: Vec<u8>) -> CommandPacket {
-        CommandPacket {
-            protocol_id: 0,
-            protocol_version: 0,
-            id: 0,
-            command,
-            session_key: Duration::default(),
-        }
-    }
-}
-
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct StatePacket {
     pub protocol_id: u8,
@@ -34,19 +22,6 @@ pub struct StatePacket {
     pub lost_ids: Vec<u32>,
     pub state: Vec<u8>,
     pub session_key: Duration,
-}
-
-impl StatePacket {
-    pub fn new(state: Vec<u8>) -> StatePacket {
-        StatePacket {
-            protocol_id: 0,
-            protocol_version: 0,
-            id: 0,
-            lost_ids: Vec::new(),
-            state,
-            session_key: Duration::default(),
-        }
-    }
 }
 
 #[derive(Debug)]

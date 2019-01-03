@@ -21,11 +21,11 @@ use self::timer::SleepTimer;
 use self::key as k;
 
 pub struct Client {
-    version: VersionChecker,
-    protocol: ProtocolChecker,
+    protocol_version: VersionChecker,
+    protocol_id: ProtocolChecker,
     id: Generator,
     cache: Cache,
-    filter: Filter,
+    id_filter: Filter,
     timer: SleepTimer,
     key_generator: k::Generator,
     key_filter: k::Filter,
@@ -35,43 +35,50 @@ impl Client {
     pub fn new() -> Client {
         let key = k::new_key();
         Client {
-            version: VersionChecker,
-            protocol: ProtocolChecker,
+            protocol_version: VersionChecker,
+            protocol_id: ProtocolChecker,
             id: Generator::new(1),
             cache: Cache::new(),
-            filter: Filter::new(0),
+            id_filter: Filter::new(0),
             timer: SleepTimer::new(30),
             key_filter: k::Filter::new(key),
             key_generator: k::Generator::new(),
         }
     }
+
+    fn create_command(&mut self, command: Vec<u8>) -> CommandPacket {
+        CommandPacket {
+            protocol_id:  self.protocol_id.get(),
+            protocol_version:self.protocol_version.get(),
+            id: self.id.generate(),
+            command,
+            session_key: self.key_generator.generate(),
+        }
+    }
+
     pub fn send(&mut self, command: Vec<u8>) -> CommandPacket {
-        let mut command = CommandPacket::new(command);
-        command.protocol_version = self.version.get();
-        command.protocol_id = self.protocol.get();
-        command.id = self.id.generate();
-        command.session_key = self.key_generator.generate();
+        let command = self.create_command(command);
         self.cache.add(command.clone());
         self.timer.sleep();
         command
     }
 
     pub fn recv(&mut self, state: StatePacket) -> Result<(Vec<u8>, Vec<CommandPacket>), Exception> {
-        self.version.check(&state)?;
-        self.protocol.check(&state)?;
+        self.protocol_version.check(&state)?;
+        self.protocol_id.check(&state)?;
         if !self.key_filter.is_valid(&state) {
             self.key_filter = k::Filter::new(state.session_key);
-            self.filter = Filter::new(0);
+            self.id_filter = Filter::new(0);
         }
-        self.filter.is_valid_last_recv_id(&state)?;
+        self.id_filter.is_valid_last_recv_id(&state)?;
         let vec = self.cache.get_range(&state.lost_ids);
         Ok((state.state, vec))
     }
 }
 
 pub struct Server {
-    version: VersionChecker,
-    protocol: ProtocolChecker,
+    protocol_version: VersionChecker,
+    protocol_id: ProtocolChecker,
     id: Generator,
     arranger: Arranger<CommandPacket>,
     key_generator: k::Generator,
@@ -82,8 +89,8 @@ impl Server {
     pub fn new() -> Server {
         let key = k::new_key();
         Server {
-            version: VersionChecker,
-            protocol: ProtocolChecker,
+            protocol_version: VersionChecker,
+            protocol_id: ProtocolChecker,
             id: Generator::new(1),
             arranger: Arranger::new(0),
             key_filter: k::Filter::new(key),
@@ -91,19 +98,21 @@ impl Server {
         }
     }
 
+
     pub fn send(&mut self, state: Vec<u8>) -> StatePacket {
-        let mut state = StatePacket::new(state);
-        state.protocol_version = self.version.get();
-        state.protocol_id = self.protocol.get();
-        state.id = self.id.generate();
-        state.session_key = self.key_generator.generate();
-        state.lost_ids = self.arranger.get_lost();
-        state
+        StatePacket {
+            protocol_id: self.protocol_id.get(),
+            protocol_version: self.protocol_version.get(),
+            id: self.id.generate(),
+            lost_ids: self.arranger.get_lost(),
+            state,
+            session_key: self.key_generator.generate(),
+        }
     }
 
     pub fn recv(&mut self, command: CommandPacket) -> Result<Vec<Vec<u8>>, Exception> {
-        self.version.check(&command)?;
-        self.protocol.check(&command)?;
+        self.protocol_version.check(&command)?;
+        self.protocol_id.check(&command)?;
         if !self.key_filter.is_valid(&command) {
             self.key_filter = k::Filter::new(command.session_key);
             self.arranger = Arranger::new(0);

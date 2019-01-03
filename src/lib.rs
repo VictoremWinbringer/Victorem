@@ -10,7 +10,8 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::time::Duration;
 
-//TODO: Add client with packet id
+//TODO: Add Session ID for Client And Server!
+
 #[derive(Debug)]
 ///Events from server
 pub enum ServerEvent {
@@ -147,7 +148,7 @@ impl ServerSocket {
 
 const DRAW_PERIOD_IN_MILLIS: u64 = 30;
 
-///Game server to run game
+///Game server to run [`Game`]
 pub struct GameServer<T: Game> {
     game: T,
     socket: ServerSocket,

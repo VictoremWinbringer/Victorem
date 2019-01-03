@@ -85,11 +85,6 @@ fn create_server(game: GameMock, port: String) -> Result<GameServer<GameMock>, E
 }
 
 #[test]
-fn test_time() {
-    assert!(false, "{:?} {:?}", std::time::Instant::now(),std::time::Instant::now().elapsed());
-}
-
-#[test]
 fn server_should_send_state_to_client_on_draw() -> Result<(), Exception> {
     std::thread::spawn(|| {
         let mut game_data = GameData::new();

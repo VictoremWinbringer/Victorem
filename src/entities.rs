@@ -3,6 +3,7 @@ use std::error::Error;
 use std::fmt::Display;
 use std::fmt::Formatter;
 use std::io;
+use std::time::{Duration, SystemTimeError};
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct CommandPacket {
@@ -10,6 +11,7 @@ pub struct CommandPacket {
     pub protocol_version: u8,
     pub id: u32,
     pub command: Vec<u8>,
+    pub session_key: Duration,
 }
 
 impl CommandPacket {
@@ -19,6 +21,7 @@ impl CommandPacket {
             protocol_version: 0,
             id: 0,
             command,
+            session_key: Duration::default(),
         }
     }
 }
@@ -30,6 +33,7 @@ pub struct StatePacket {
     pub id: u32,
     pub lost_ids: Vec<u32>,
     pub state: Vec<u8>,
+    pub session_key: Duration,
 }
 
 impl StatePacket {
@@ -40,6 +44,7 @@ impl StatePacket {
             id: 0,
             lost_ids: Vec::new(),
             state,
+            session_key: Duration::default(),
         }
     }
 }
@@ -72,7 +77,6 @@ impl std::convert::From<bincode::Error> for Exception {
         Exception::BincodeError(err)
     }
 }
-
 //#[derive(Debug)]
 //pub struct LoggerMonad<T>(Result<T, Exception>);
 //

@@ -55,7 +55,7 @@ impl Filter {
             self.id = data.get();
             Ok(())
         } else {
-            Err(Exception::NotValidIdError)
+            Err(Exception::NotOrderedPacketError)
         }
     }
 }
@@ -93,7 +93,7 @@ impl<T: IWithId> Arranger<T> {
         }
         self.clear_if_overflows();
         if self.received.contains(&data.get()) {
-            Err(Exception::NotValidIdError)
+            Err(Exception::NotOrderedPacketError)
         } else {
             self.received.push(data.get());
             self.packets.entry(data.get()).or_insert(data);

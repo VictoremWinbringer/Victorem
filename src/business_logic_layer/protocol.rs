@@ -34,7 +34,7 @@ impl ProtocolChecker {
         if data.get() == PROTOCOL_ID {
             Ok(())
         } else {
-            Err(Exception::BadProtocolVersion)
+            Err(Exception::NotValidIdError)
         }
     }
 

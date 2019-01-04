@@ -99,7 +99,7 @@ impl ClientSocket {
 
     ///Reads data from server.
     /// Don't block current thread.
-    /// Return [`Exception`] with [`io::ErrorKind::WouldBlock`] if there is no data available.
+    /// Return [`Exception`] with [`std::io::ErrorKind::WouldBlock`] if there is no data available.
     ///Data ordered and without some guarantees.
     pub fn recv(&mut self) -> Result<Vec<u8>, Exception> {
         let state = self.socket.read()?;

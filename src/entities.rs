@@ -25,11 +25,23 @@ pub struct StatePacket {
 }
 
 #[derive(Debug)]
+///Error in framework
 pub enum Exception {
+    ///Error on send or recv from UDP
+    /// If it kind is [`std::io::ErrorKind::WouldBlock`] then retry again.
     IoError(io::Error),
+    /// Different lib version on client and server.
+    /// You must update client and server.
     BadProtocolVersion,
+    ///Error on serialize or deserialize
     BincodeError(bincode::Error),
+    /// Not ordered command or state come by this reason it was skipped.
+    /// Maybe it is duplicated.
+    /// Retry again.
     NotOrderedPacketError,
+    ///Packet not from this lib.
+    /// Lib ignoring it.
+    /// Retry again.
     NotValidIdError,
 }
 

@@ -13,25 +13,25 @@ use std::time::Duration;
 //TODO: Add Session ID for Client And Server!
 
 #[derive(Debug)]
-///Events from server
+///Events from server.
 pub enum ServerEvent {
-    ///Error on read data from socket
+    ///Error on read data from socket.
     ExceptionOnRecv(Exception),
-    ///Error on write data to socket
+    ///Error on write data to socket.
     ExceptionOnSend((SocketAddr, Exception)),
 }
 
 pub type ContinueRunning = bool;
 pub type DisconnectThisClient = bool;
 
-///Game to use with server must implement this trait
+///Game to use with server must implement this trait.
 pub trait Game {
-    /// delta_time: time elapsed from last call
-    /// command: ordered commands commands from server
-    /// from: Address of command sender
-    /// returns bool value indicating
-    /// should server continue running if false stops server
-    /// called only when new commands come to server
+    /// delta_time: time elapsed from last call.
+    /// command: ordered commands commands from server.
+    /// from: Address of command sender.
+    /// Returns bool value indicating
+    /// should server continue running if false stops server.
+    /// Called only when new commands come to server.
     /// Commands ordered and with some guarantees.
     fn handle_command(
         &mut self,
@@ -39,48 +39,48 @@ pub trait Game {
         commands: Vec<Vec<u8>>,
         from: SocketAddr,
     ) -> ContinueRunning;
-    ///gets new state to send to client
-    /// delta_time: time elapsed throw last call
-    /// returns bytes with new game state for client
-    /// called once in about 30 milliseconds
-    /// sends state only to clients connected to server
-    ///ordered and without some guarantees.
+    ///Gets new state to send to client.
+    /// delta_time: time elapsed throw last call.
+    /// Returns bytes with new game state for client.
+    /// Called once in about 30 milliseconds.
+    /// Sends state only to clients connected to server.
+    ///Ordered and without some guarantees.
     fn draw(&mut self, delta_time: Duration) -> Vec<u8>;
-    ///allow client with this IP Address work with server
-    /// if false server don't send new state to this client
-    /// usually don't implement this method. Use default implementation
+    ///Allow client with this IP Address work with server.
+    /// If false server don't send new state to this client.
+    /// Usually don't implement this method. Use default implementation.
     fn allow_connect(&mut self, _from: &SocketAddr) -> bool {
         true
     }
-    ///Handles events from server
-    /// returns bool value
-    /// if returns false stops server
-    /// usually don't implement this method. Use default implementation
+    ///Handles events from server.
+    /// Returns bool value.
+    /// If returns false stops server.
+    /// Usually don't implement this method. Use default implementation.
     fn handle_server_event(&mut self, _event: ServerEvent) -> ContinueRunning {
         true
     }
-    ///Client to add to recv state from serve
-    /// if returns not None then servers on draw sends new state to this client
-    /// if client with this IP Address already connected then nothing happens
-    /// usually don't implement this method. Use default implementation
+    ///Client to add to recv state from server.
+    /// If returns not None then servers on draw sends new state to this client.
+    /// If client with this IP Address already connected then nothing happens.
+    /// Usually don't implement this method. Use default implementation.
     fn add_client(&mut self) -> Option<SocketAddr> {
         None
     }
-    ///Disconnect this client from server and don't send new state to them
-    /// usually don't implement this method. Use default implementation
+    ///Disconnect this client from server and don't send new state to them.
+    /// Usually don't implement this method. Use default implementation.
     fn remove_client(&mut self) -> Option<SocketAddr> {
         None
     }
 }
 
-/// Client used to communicate with [`GameServer`]. Must be singleton in your app
+/// Client used to communicate with [`GameServer`]. Must be singleton in your app.
 pub struct ClientSocket {
     socket: TypedClientSocket,
     client: bll::Client,
 }
 
 impl ClientSocket {
-    ///Create new client and listen on port to recv packets from server_address and send its to them
+    ///Create new client and listen on port to recv packets from server_address and send its to them.
     pub fn new(port: &str, server_address: &str) -> Result<ClientSocket, Exception> {
         Ok(ClientSocket {
             socket: TypedClientSocket::new(port, server_address)?,
@@ -97,8 +97,8 @@ impl ClientSocket {
         self.socket.write(&command)
     }
 
-    ///Reads data fro server
-    /// Don't block current thread
+    ///Reads data from server.
+    /// Don't block current thread.
     /// Return [`Exception`] with [`io::ErrorKind::WouldBlock`] if there is no data available.
     ///Data ordered and without some guarantees.
     pub fn recv(&mut self) -> Result<Vec<u8>, Exception> {
@@ -177,8 +177,8 @@ impl<T: Game> GameServer<T> {
             draw_elapsed: bll::timer::ElapsedTimer::new(),
         })
     }
-    ///Runs game update - draw circle
-    /// blocks current thread
+    ///Runs game update - draw circle.
+    /// Blocks current thread.
     pub fn run(&mut self) {
         while self.is_running {
             self.update();

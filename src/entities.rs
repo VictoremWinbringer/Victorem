@@ -35,7 +35,7 @@ pub enum Exception {
     BadProtocolVersion,
     ///Error on serialize or deserialize
     BincodeError(bincode::Error),
-    /// Not ordered command or state come by this reason it was skipped.
+    /// Not ordered command or state received by this reason it was skipped.
     /// Maybe it is duplicated.
     /// Retry again.
     NotOrderedPacketError,
@@ -49,7 +49,12 @@ impl Error for Exception {}
 
 impl Display for Exception {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-        write!(f, "{:#?}", self)
+        match self {
+            Exception::BadProtocolVersion => write!(f, "Different lib version on client and server. You must update client and server."),
+            Exception::NotOrderedPacketError => write!(f, "Not ordered command or state received by this reason it was skipped. Maybe it is duplicated. Retry again."),
+            Exception::NotValidIdError => write!(f, "Packet not from this lib. Lib ignoring it. Retry again."),
+            _ => write!(f, "{:#?}", self),
+        }
     }
 }
 

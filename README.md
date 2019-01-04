@@ -1,5 +1,7 @@
 # Victorem
-Victorem - easy UDP game server and client framework for creating simple 2D and 3D online game prototype in Rust.
+[<img src="https://api.travis-ci.org/VictoremWinbringer/Victorem.svg?branch=master">](https://travis-ci.org/VictoremWinbringer/Victorem)
+
+Easy UDP game server and client framework for creating simple 2D and 3D online game prototype in Rust.
 ## Example 
 ### Cargo.toml
 ```toml

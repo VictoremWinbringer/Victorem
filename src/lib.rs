@@ -32,6 +32,7 @@ pub trait Game {
     /// returns bool value indicating
     /// should server continue running if false stops server
     /// called only when new commands come to server
+    /// Commands ordered and with some guarantees.
     fn handle_command(
         &mut self,
         delta_time: Duration,
@@ -43,6 +44,7 @@ pub trait Game {
     /// returns bytes with new game state for client
     /// called once in about 30 milliseconds
     /// sends state only to clients connected to server
+    ///ordered and without some guarantees.
     fn draw(&mut self, delta_time: Duration) -> Vec<u8>;
     ///allow client with this IP Address work with server
     /// if false server don't send new state to this client
@@ -65,6 +67,7 @@ pub trait Game {
         None
     }
     ///Disconnect this client from server and don't send new state to them
+    /// usually don't implement this method. Use default implementation
     fn remove_client(&mut self) -> Option<SocketAddr> {
         None
     }
@@ -88,6 +91,7 @@ impl ClientSocket {
     ///Send data to server
     /// Don't block current thread
     /// may wait up to 30 milliseconds if you send commands too often
+    ///Commands ordered and with some guarantees.
     pub fn send(&mut self, command: Vec<u8>) -> Result<usize, Exception> {
         let command = self.client.send(command);
         self.socket.write(&command)
@@ -95,7 +99,8 @@ impl ClientSocket {
 
     ///Reads data fro server
     /// Don't block current thread
-    /// Return None if there is no data available
+    /// Return [`Exception`] with [`io::ErrorKind::WouldBlock`] if there is no data available.
+    ///Data ordered and without some guarantees.
     pub fn recv(&mut self) -> Result<Vec<u8>, Exception> {
         let state = self.socket.read()?;
         let (state, lost) = self.client.recv(state)?;

@@ -1,6 +1,6 @@
 use crate::entities::{CommandPacket, Exception, StatePacket};
 
-const PROTOCOL_VERSION: u8 = 1;
+const PROTOCOL_VERSION: u8 = 2;
 
 pub trait IWithVersion {
     fn get(&self) -> u8;

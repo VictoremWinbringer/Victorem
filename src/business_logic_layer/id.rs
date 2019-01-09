@@ -1,5 +1,6 @@
 use crate::entities::{CommandPacket, Exception, StatePacket};
 use std::collections::HashMap;
+use std::cmp::max;
 
 pub trait IWithId {
     fn get(&self) -> u32;
@@ -61,20 +62,22 @@ impl Filter {
 }
 
 pub struct Arranger<T: IWithId> {
-    last_id: u32,
+    last_valid_packet_id: u32,
     packets: HashMap<u32, T>,
+    last_received_packet_id: u32,
     received: Vec<u32>,
 }
 
-const MAX_ID_BREAK: u32 = 64;
-const MAX_SAVED: usize = (MAX_ID_BREAK * 2) as usize;
+const MAX_ID_BREAK: u32 = 32;
+const MAX_SAVED: usize = (MAX_ID_BREAK * 4) as usize;
 const MAX_RECEIVED: usize = MAX_SAVED;
 
 impl<T: IWithId> Arranger<T> {
     pub fn new(last_id: u32) -> Arranger<T> {
         Arranger {
-            last_id,
+            last_valid_packet_id: last_id,
             packets: HashMap::new(),
+            last_received_packet_id: 0,
             received: Vec::new(),
         }
     }
@@ -87,16 +90,18 @@ impl<T: IWithId> Arranger<T> {
 
     pub fn add(&mut self, data: T) -> Result<(), Exception> {
         let id = data.get();
-        if id + MAX_ID_BREAK < self.last_id || self.last_id + MAX_ID_BREAK < id {
-            self.last_id = id;
-            self.received = Vec::new()
+        if id > self.last_received_packet_id + MAX_ID_BREAK {
+            self.packets = HashMap::new();
+            self.last_valid_packet_id = id - 1;
+            self.received = Vec::new();
         }
         self.clear_if_overflows();
-        if self.received.contains(&data.get()) {
+        if self.received.contains(&id) || data.get() + MAX_ID_BREAK < self.last_received_packet_id {
             Err(Exception::NotOrderedPacketError)
         } else {
-            self.received.push(data.get());
-            self.packets.entry(data.get()).or_insert(data);
+            self.last_received_packet_id = id;
+            self.packets.entry(id).or_insert(data);
+            self.received.push(id);
             Ok(())
         }
     }
@@ -111,7 +116,7 @@ impl<T: IWithId> Arranger<T> {
                 .min_by(|x, y| x.0.cmp(y.0))
                 .map(|x| *x.0);
             min_id.map(|x| {
-                self.last_id = if x > 0 { x - 1 } else { 0 };
+                self.last_valid_packet_id = if x > 0 { x - 1 } else { 0 };
             });
             self.packets = self
                 .packets
@@ -120,13 +125,9 @@ impl<T: IWithId> Arranger<T> {
                 .skip(MAX_SAVED / 2)
                 .collect();
         }
+
         if self.received.len() > MAX_RECEIVED {
-            self.received = self
-                .received
-                .clone()
-                .into_iter()
-                .skip(MAX_RECEIVED / 2)
-                .collect();
+            self.received = self.received.clone().into_iter().skip(MAX_RECEIVED / 2).collect();
         }
     }
 
@@ -135,25 +136,27 @@ impl<T: IWithId> Arranger<T> {
             .iter()
             .map(|p| p.get())
             .max()
-            .map(|max| self.last_id = max);
+            .map(|max| self.last_valid_packet_id = max);
     }
 
-    pub fn get_lost(&self) -> Vec<u32> {
-        self.packets
-            .keys()
-            .max()
-            .map(|max| (self.last_id + 1, *max))
-            .map(|(min, max)| min..=max)
-            .map(|range| range.filter(|i| !self.packets.contains_key(i)))
-            .map(|filter| {
-                let ids: Vec<u32> = filter.collect();
-                ids
-            })
-            .unwrap_or_else(Vec::new)
+    pub fn get_lost(&self) -> (u32, u32) {
+        let max = self.last_received_packet_id;
+        let mut id: u32 = 0;
+        let mut j = 0;
+        let mut i = max;
+        while j < 32 && i > 0 {
+            i -= 1;
+            if !self.packets.contains_key(&i) {
+                let mask = 1u32 << j;
+                id |= mask;
+            }
+            j += 1;
+        }
+        (id, max)
     }
 
     fn get_valid(&mut self) -> Vec<T> {
-        let mut i = self.last_id + 1;
+        let mut i = self.last_valid_packet_id + 1;
         let mut vec: Vec<T> = Vec::new();
         while self.packets.contains_key(&i) {
             vec.push(self.packets.remove(&i).unwrap());

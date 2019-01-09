@@ -67,8 +67,28 @@ impl Client {
             self.id_filter = Filter::new(0);
         }
         self.id_filter.filter(&state)?;
-        let vec = self.cache.get_range(&state.lost_ids);
+        let vec = self.get_lost(state.last_received, state.sequence);
         Ok((state.state, vec))
+    }
+
+    fn get_lost(&mut self, max_id: u32, sequence: u32) -> Vec<CommandPacket> {
+        if max_id == 0 || sequence == 0 {
+            return Vec::new();
+        }
+
+        let mut x = max_id;
+        let mut y = 0;
+        let mut ids = Vec::<u32>::new();
+        while x > 0 && y < 32 {
+            x -= 1;
+            let mask = 1u32 << y;
+            y += 1;
+            let res = sequence & mask;
+            if res > 0 {
+                ids.push(x);
+            }
+        }
+        self.cache.get_range(&ids)
     }
 }
 
@@ -95,12 +115,14 @@ impl Server {
     }
 
     pub fn send(&mut self, state: Vec<u8>) -> StatePacket {
+        let (sequence, last_id) = self.arranger.get_lost();
         StatePacket {
             protocol_id: self.protocol_id.get(),
             protocol_version: self.protocol_version.get(),
             id: self.id.generate(),
-            lost_ids: self.arranger.get_lost(),
-            state,
+            state: state,
+            last_received: last_id,
+            sequence: sequence,
             session_key: self.key_generator.generate(),
         }
     }

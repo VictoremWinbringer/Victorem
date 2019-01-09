@@ -22,7 +22,6 @@ pub enum ServerEvent {
 }
 
 pub type ContinueRunning = bool;
-pub type DisconnectThisClient = bool;
 
 ///Game to use with server must implement this trait.
 pub trait Game {

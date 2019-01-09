@@ -19,9 +19,10 @@ pub struct StatePacket {
     pub protocol_id: u8,
     pub protocol_version: u8,
     pub id: u32,
-    pub lost_ids: Vec<u32>,
     pub state: Vec<u8>,
     pub session_key: Duration,
+    pub last_received: u32,
+    pub sequence: u32
 }
 
 #[derive(Debug)]

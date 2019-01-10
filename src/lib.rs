@@ -44,6 +44,7 @@ pub trait Game {
     /// Called once in about 30 milliseconds.
     /// Sends state only to clients connected to server.
     ///Ordered and without some guarantees.
+    /// If returns empty Vec<u8> then server skips sending it and go to next iteration
     fn draw(&mut self, delta_time: Duration) -> Vec<u8>;
     ///Allow client with this IP Address work with server.
     /// If false server don't send new state to this client.
@@ -159,9 +160,9 @@ pub struct GameServer<T: Game> {
     game: T,
     socket: ServerSocket,
     is_running: bool,
-    draw: bll::timer::WaitTimer,
-    update: bll::timer::ElapsedTimer,
-    draw_elapsed: bll::timer::ElapsedTimer,
+    draw_timer: bll::timer::WaitTimer,
+    update_timer: bll::timer::ElapsedTimer,
+    after_draw_elapsed_timer: bll::timer::ElapsedTimer,
 }
 
 impl<T: Game> GameServer<T> {
@@ -171,9 +172,9 @@ impl<T: Game> GameServer<T> {
             game,
             socket: ServerSocket::new(port)?,
             is_running: true,
-            draw: bll::timer::WaitTimer::new(DRAW_PERIOD_IN_MILLIS),
-            update: bll::timer::ElapsedTimer::new(),
-            draw_elapsed: bll::timer::ElapsedTimer::new(),
+            draw_timer: bll::timer::WaitTimer::new(DRAW_PERIOD_IN_MILLIS),
+            update_timer: bll::timer::ElapsedTimer::new(),
+            after_draw_elapsed_timer: bll::timer::ElapsedTimer::new(),
         })
     }
     ///Runs game update - draw circle.
@@ -186,8 +187,11 @@ impl<T: Game> GameServer<T> {
     }
 
     fn draw(&mut self) {
-        if self.draw.continue_execution() {
-            let state = self.game.draw(self.draw_elapsed.elapsed());
+        if self.draw_timer.continue_execution() {
+            let state = self.game.draw(self.after_draw_elapsed_timer.elapsed());
+            if state.is_empty() {
+                return;
+            }
             self.game.add_client().map(|a| self.socket.add(&a));
             self.game.remove_client().map(|a| self.socket.remove(&a));
             self.is_running &= self
@@ -210,7 +214,7 @@ impl<T: Game> GameServer<T> {
                 if self.game.allow_connect(&from) {
                     self.is_running &=
                         self.game
-                            .handle_command(self.update.elapsed(), commands, from);
+                            .handle_command(self.update_timer.elapsed(), commands, from);
                 } else {
                     self.socket.remove(&from);
                 }

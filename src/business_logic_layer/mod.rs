@@ -139,3 +139,40 @@ impl Server {
         Ok(vec.into_iter().map(|v| v.command).collect())
     }
 }
+
+#[cfg(test)]
+mod bll_test {
+    use crate::business_logic_layer::{Client, Server};
+
+    #[test]
+    fn client_should_recv_ordered_packets() {
+        let mut client = Client::new();
+        let mut server = Server::new();
+        let packet1 = server.send(vec![1]);
+        let packet2 = server.send(vec![2]);
+        let packet3 = server.send(vec![3]);
+        let r_packet1 = client.recv(packet1);
+        let r_packet3 = client.recv(packet3);
+        let r_packet2 = client.recv(packet2);
+        assert!({
+            match r_packet1 {
+                Err(_) => false,
+                Ok((v, _)) => v == vec![1]
+            }
+        });
+
+        assert!({
+            match r_packet3 {
+                Err(_) => false,
+                Ok((v, _)) => v == vec![3]
+            }
+        });
+
+        assert!({
+            match r_packet2 {
+                Err(crate::entities::Exception::NotOrderedPacketError) =>true,
+                _ => false,
+            }
+        });
+    }
+}

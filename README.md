@@ -6,7 +6,7 @@ Easy UDP game server and client framework for creating simple 2D and 3D online g
 ### Cargo.toml
 ```toml
 [dependencies]
-victorem = "*"
+victorem = "0.8.0"
 ```
 ### Client 
 ```rust

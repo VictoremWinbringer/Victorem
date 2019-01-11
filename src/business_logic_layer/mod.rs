@@ -170,8 +170,44 @@ mod bll_test {
 
         assert!({
             match r_packet2 {
-                Err(crate::entities::Exception::NotOrderedPacketError) =>true,
+                Err(crate::entities::Exception::NotOrderedPacketError) => true,
                 _ => false,
+            }
+        });
+    }
+
+    #[test]
+    fn server_should_recv_ordered_and_reliable_packets() {
+        let mut client = Client::new();
+        let mut server = Server::new();
+        let command1 = client.send(vec![1]);
+        let command2 = client.send(vec![2]);
+        let command3 = client.send(vec![3]);
+        assert_eq!(3, command3.id);
+        let r1 = server.recv(command1);
+        let r3 = server.recv(command3);
+        assert!({
+            match r1 {
+                Err(_) => false,
+                Ok(v) => v.contains(&vec![1])
+            }
+        });
+        assert!({
+            match r3 {
+                Err(_) => false,
+                Ok(v) => v.is_empty(),
+            }
+        });
+        let state1 = server.send(vec![4]);
+        assert_eq!(3, state1.last_received);
+        assert_eq!(1, state1.sequence);
+        let (b, commands) = client.recv(state1).unwrap();
+
+        let r2 = server.recv(commands.first().unwrap().to_owned());
+        assert!({
+            match r2 {
+                Err(_) => false,
+                Ok(v) => v.len() == 2 && v.contains(&vec![2]) && v.contains(&vec![3]) && v[0] == vec![2]
             }
         });
     }

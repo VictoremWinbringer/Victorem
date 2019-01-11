@@ -10,8 +10,6 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::time::Duration;
 
-//TODO: Add Session ID for Client And Server!
-
 #[derive(Debug)]
 ///Events from server.
 pub enum ServerEvent {

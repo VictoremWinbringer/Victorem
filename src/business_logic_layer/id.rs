@@ -140,19 +140,18 @@ impl<T: IWithId> Arranger<T> {
     }
 
     pub fn get_lost(&self) -> (u32, u32) {
-        let max = self.last_received_packet_id;
-        let mut id: u32 = 0;
-        let mut j = 0;
-        let mut i = max;
-        while j < 32 && i > 0 {
-            i -= 1;
-            if !self.packets.contains_key(&i) {
-                let mask = 1u32 << j;
-                id |= mask;
+        let mut sequence: u32 = 0;
+        let mut x = 0;
+        let mut y = self.last_received_packet_id;
+        while x < 32 && y > 1 {
+            y -= 1;
+            if !self.received.contains(&y) {
+                let mask = 1u32 << x;
+                sequence |= mask;
             }
-            j += 1;
+            x += 1;
         }
-        (id, max)
+        (sequence, self.last_received_packet_id)
     }
 
     fn get_valid(&mut self) -> Vec<T> {

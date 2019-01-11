@@ -1,6 +1,5 @@
 use crate::entities::{CommandPacket, Exception, StatePacket};
 use std::collections::HashMap;
-use std::cmp::max;
 
 pub trait IWithId {
     fn get(&self) -> u32;

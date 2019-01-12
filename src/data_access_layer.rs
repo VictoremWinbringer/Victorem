@@ -161,6 +161,13 @@ impl Cache {
         self.data.push(command);
     }
 
+    pub fn get_max_id(&self) -> u32 {
+        self.data.iter()
+            .map(|x| x.id)
+            .max()
+            .unwrap_or(0)
+    }
+
     pub fn get(&mut self, id: u32) -> Option<CommandPacket> {
         self.data
             .iter()

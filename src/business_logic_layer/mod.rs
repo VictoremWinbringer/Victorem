@@ -72,13 +72,13 @@ impl Client {
     }
 
     fn get_lost(&mut self, max_id: u32, sequence: u32) -> Vec<CommandPacket> {
-        if max_id == 0 || sequence == 0 {
-            return Vec::new();
-        }
-
         let mut x = max_id;
         let mut y = 0;
         let mut ids = Vec::<u32>::new();
+        let max_cached = self.cache.get_max_id();
+        if max_cached != max_id {
+            ids.push(max_cached);
+        }
         while x > 0 && y < 32 {
             x -= 1;
             let mask = 1u32 << y;
@@ -210,5 +210,22 @@ mod bll_test {
                 Ok(v) => v.len() == 2 && v.contains(&vec![2]) && v.contains(&vec![3]) && v[0] == vec![2]
             }
         });
+    }
+
+    #[test]
+    fn client_should_resend_undelivered_packets() {
+        let mut client = Client::new();
+        let mut server = Server::new();
+        let command1 = client.send(vec![1]);
+        let command2 = client.send(vec![2]);
+        let r1 = server.recv(command1);
+        let state1 = server.send(vec![4]);
+        assert_eq!(state1.last_received, 1);
+        let (b, commands) = client.recv(state1).unwrap();
+        assert_eq!(1, commands.len());
+        assert_eq!(b, vec![4]);
+        let cmd = commands.first().unwrap().to_owned();
+        assert_eq!(cmd.id, 2);
+        assert_eq!(cmd.command, vec![2]);
     }
 }

@@ -6,7 +6,7 @@ Easy UDP game server and client framework for creating simple 2D and 3D online g
 ### Cargo.toml
 ```toml
 [dependencies]
-victorem = "0.8.1"
+victorem = "0.8.2"
 ```
 ### Client 
 ```rust
@@ -14,7 +14,7 @@ use victorem;
 use std::time::{Duration, Instant};
 
 fn main() {
-    let mut client = victorem::ClientSocket::new("1111", "127.0.0.1:2222").unwrap();
+    let mut client = victorem::ClientSocket::new(11111, "127.0.0.1:22222").unwrap();
     let mut id: u32 = 0;
     let mut timer = Instant::now();
     let period = Duration::from_millis(100);
@@ -22,8 +22,7 @@ fn main() {
         if timer.elapsed() > period {
             timer = Instant::now();
             id += 1;
-            let _ = client
-                .send(format!("Ping {}", id).into_bytes());
+            let _ = client.send(format!("Ping {}", id).into_bytes());
         }
         let _ = client
             .recv()
@@ -67,10 +66,7 @@ impl victorem::Game for PingPongGame {
 }
 
 fn main() {
-    let mut server = victorem::GameServer::new(
-        PingPongGame { id: 0 },
-        "2222",
-    ).unwrap();
+    let mut server = victorem::GameServer::new(PingPongGame { id: 0 }, 22222).unwrap();
     server.run();
 }
 ```

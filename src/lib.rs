@@ -7,7 +7,7 @@ pub use crate::data_access_layer::MAX_DATAGRAM_SIZE;
 use crate::data_access_layer::{TypedClientSocket, TypedServerSocket};
 pub use crate::entities::Exception;
 use std::collections::HashMap;
-use std::net::SocketAddr;
+use std::net::{SocketAddr, ToSocketAddrs};
 use std::time::Duration;
 
 #[derive(Debug)]
@@ -79,7 +79,7 @@ pub struct ClientSocket {
 
 impl ClientSocket {
     ///Create new client and listen on port to recv packets from server_address and send its to them.
-    pub fn new(port: &str, server_address: &str) -> Result<ClientSocket, Exception> {
+    pub fn new(port: u16, server_address: impl ToSocketAddrs) -> Result<ClientSocket, Exception> {
         Ok(ClientSocket {
             socket: TypedClientSocket::new(port, server_address)?,
             client: bll::Client::new(),
@@ -115,7 +115,7 @@ struct ServerSocket {
 }
 
 impl ServerSocket {
-    pub fn new(port: &str) -> Result<ServerSocket, Exception> {
+    pub fn new(port: u16) -> Result<ServerSocket, Exception> {
         Ok(ServerSocket {
             socket: TypedServerSocket::new(port)?,
             servers: HashMap::new(),
@@ -165,7 +165,7 @@ pub struct GameServer<T: Game> {
 
 impl<T: Game> GameServer<T> {
     ///Crates new server listening port
-    pub fn new(game: T, port: &str) -> Result<GameServer<T>, Exception> {
+    pub fn new(game: T, port: u16) -> Result<GameServer<T>, Exception> {
         Ok(GameServer {
             game,
             socket: ServerSocket::new(port)?,

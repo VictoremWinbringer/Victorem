@@ -32,6 +32,6 @@ impl victorem::Game for PingPongGame {
 }
 
 fn main() {
-    let mut server = victorem::GameServer::new(PingPongGame { id: 0 }, "2222").unwrap();
+    let mut server = victorem::GameServer::new(PingPongGame { id: 0 }, 22222).unwrap();
     server.run();
 }

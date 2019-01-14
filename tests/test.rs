@@ -83,8 +83,8 @@ impl<'a> Game for GameMock<'a> {
     }
 }
 
-fn create_server(game: GameMock, port: String) -> Result<GameServer<GameMock>, Exception> {
-    GameServer::new(game, &port)
+fn create_server(game: GameMock, port: u16) -> Result<GameServer<GameMock>, Exception> {
+    GameServer::new(game, port)
 }
 
 #[test]
@@ -93,11 +93,11 @@ fn server_should_send_state_to_client_on_draw() -> Result<(), Exception> {
         let mut game_data = GameData::new();
         game_data.draw = vec![3u8, 7, 8];
         let game_mock = GameMock::new(&mut game_data, 100000);
-        if let Ok(mut game_server) = create_server(game_mock, "3336".into()) {
+        if let Ok(mut game_server) = create_server(game_mock, 3336) {
             game_server.run();
         }
     });
-    let mut client = ClientSocket::new("4444", "127.0.0.1:3336")?;
+    let mut client = ClientSocket::new(4444, "127.0.0.1:3336")?;
     client.send(vec![1u8]);
     client.send(vec![1u8]);
     client.send(vec![1u8]);
@@ -114,7 +114,7 @@ fn server_should_send_state_to_client_on_draw() -> Result<(), Exception> {
 #[test]
 fn server_should_stop_if_handle_command_returns_false() -> Result<(), Exception> {
     std::thread::spawn(|| {
-        let res = ClientSocket::new("1112", "127.0.0.1:3333")
+        let res = ClientSocket::new(1112, "127.0.0.1:3333")
             .map(|mut c| {
                 for _i in 0..1000 {
                     let _ = c.send(vec![1u8, 3u8]);
@@ -129,7 +129,7 @@ fn server_should_stop_if_handle_command_returns_false() -> Result<(), Exception>
     let mut game_data = GameData::new();
     game_data.continue_on_command = false;
     let game_mock = GameMock::new(&mut game_data, 1000);
-    let mut game_server = create_server(game_mock, "3333".into())?;
+    let mut game_server = create_server(game_mock, 3333)?;
     game_server.run();
     let stop = timer.elapsed();
     assert!(stop - start < std::time::Duration::from_millis(100));
@@ -143,7 +143,7 @@ fn server_should_stop_if_handle_event_returns_false() -> Result<(), Exception> {
     let mut game_data = GameData::new();
     game_data.continue_on_event = false;
     let game_mock = GameMock::new(&mut game_data, 1000);
-    let mut game_server = create_server(game_mock, "3334".into())?;
+    let mut game_server = create_server(game_mock, 3334)?;
     game_server.run();
     let stop = timer.elapsed();
     assert!(stop - start < std::time::Duration::from_millis(100));
@@ -153,7 +153,7 @@ fn server_should_stop_if_handle_event_returns_false() -> Result<(), Exception> {
 #[test]
 fn server_should_recv_commands_from_client() -> Result<(), Exception> {
     std::thread::spawn(|| {
-        let res = ClientSocket::new("1111", "127.0.0.1:3335")
+        let res = ClientSocket::new(1111, "127.0.0.1:3335")
             .map(|mut c| {
                 for _i in 0..1000 {
                     let _ = c.send(vec![1u8, 3u8]);
@@ -166,7 +166,7 @@ fn server_should_recv_commands_from_client() -> Result<(), Exception> {
 
     let mut game_data = GameData::new();
     let game_mock = GameMock::new(&mut game_data, 100);
-    let mut game_server = create_server(game_mock, "3335".into())?;
+    let mut game_server = create_server(game_mock, 3335)?;
     game_server.run();
     //  assert!(t.join().unwrap_or(0) > 0);
     assert!(

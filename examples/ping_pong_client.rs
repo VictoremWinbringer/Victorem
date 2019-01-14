@@ -3,7 +3,7 @@ extern crate victorem;
 use std::time::{Duration, Instant};
 
 fn main() {
-    let mut client = victorem::ClientSocket::new("1111", "127.0.0.1:2222").unwrap();
+    let mut client = victorem::ClientSocket::new(11111, "127.0.0.1:22222").unwrap();
     let mut id: u32 = 0;
     let mut timer = Instant::now();
     let period = Duration::from_millis(100);

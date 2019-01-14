@@ -1,6 +1,6 @@
 use crate::entities::{CommandPacket, Exception, StatePacket};
 use bincode::{deserialize, serialize};
-use std::net::{SocketAddr, UdpSocket};
+use std::net::{SocketAddr, UdpSocket, ToSocketAddrs};
 
 struct ClientSocket {
     socket: UdpSocket,
@@ -13,11 +13,10 @@ struct ServerSocket {
 pub const MAX_DATAGRAM_SIZE: usize = 64_000;
 
 impl ClientSocket {
-    fn new(port: &str, server_address: &str) -> Result<ClientSocket, Exception> {
-        let local_address = format!("0.0.0.0:{}", port.trim());
-        let remote_address = server_address.trim();
+    fn new(port: u16, server_address: impl ToSocketAddrs) -> Result<ClientSocket, Exception> {
+        let local_address = format!("0.0.0.0:{}", port);
         let socket = UdpSocket::bind(&local_address)?;
-        socket.connect(remote_address)?;
+        socket.connect(server_address)?;
         socket.set_nonblocking(true)?;
         Ok(ClientSocket { socket })
     }
@@ -34,8 +33,8 @@ impl ClientSocket {
 }
 
 impl ServerSocket {
-    fn new(port: &str) -> Result<ServerSocket, Exception> {
-        let local_address = format!("0.0.0.0:{}", port.trim());
+    fn new(port: u16) -> Result<ServerSocket, Exception> {
+        let local_address = format!("0.0.0.0:{}", port);
         let socket = UdpSocket::bind(&local_address.trim())?;
         socket.set_nonblocking(true)?;
         Ok(ServerSocket { socket })
@@ -58,7 +57,7 @@ struct BufferedServerSocket {
 }
 
 impl BufferedServerSocket {
-    fn new(port: &str) -> Result<BufferedServerSocket, Exception> {
+    fn new(port: u16) -> Result<BufferedServerSocket, Exception> {
         let socket = ServerSocket::new(port)?;
         let buffer = vec![0u8; MAX_DATAGRAM_SIZE];
         Ok(BufferedServerSocket { socket, buffer })
@@ -80,7 +79,7 @@ struct BufferedClientSocket {
 }
 
 impl BufferedClientSocket {
-    fn new(port: &str, server_address: &str) -> Result<BufferedClientSocket, Exception> {
+    fn new(port: u16, server_address: impl ToSocketAddrs) -> Result<BufferedClientSocket, Exception> {
         let socket = ClientSocket::new(port, server_address)?;
         let buffer = vec![0u8; MAX_DATAGRAM_SIZE];
         Ok(BufferedClientSocket { socket, buffer })
@@ -101,7 +100,7 @@ pub struct TypedServerSocket {
 }
 
 impl TypedServerSocket {
-    pub fn new(port: &str) -> Result<TypedServerSocket, Exception> {
+    pub fn new(port: u16) -> Result<TypedServerSocket, Exception> {
         let socket = BufferedServerSocket::new(port)?;
         Ok(TypedServerSocket { socket })
     }
@@ -123,7 +122,7 @@ pub struct TypedClientSocket {
 }
 
 impl TypedClientSocket {
-    pub fn new(port: &str, server_address: &str) -> Result<TypedClientSocket, Exception> {
+    pub fn new(port: u16, server_address: impl ToSocketAddrs) -> Result<TypedClientSocket, Exception> {
         let socket = BufferedClientSocket::new(port, server_address)?;
         Ok(TypedClientSocket { socket })
     }
